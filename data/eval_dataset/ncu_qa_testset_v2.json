@@ -3,14 +3,14 @@
     "id": 1,
     "type": "direct",
     "difficulty": "easy",
-    "question": "南昌大学国家奖学金的奖励金额是多少？申请需要满足哪些条件？",
+    "question": "南昌大学国家奖学金有多少钱拿？申请需要满足哪些要求？",
     "target_doc": "南昌大学国家奖学金及国家励志奖学金评选办法",
     "target_article": "第一条",
     "ground_truth": "国家奖学金用于奖励特别优秀的二年级（含）以上全日制本科学生（奖励金额为每人每年 8000 元）。\n申请学生须具备以下条件：\n一、热爱社会主义祖国，拥护中国共产党的领导；\n二、遵守宪法和法律，遵守学校规章制度，在校期间无任何违纪处分记录；\n三、学习成绩优异，学习成绩排名与综合素质测评成绩排名均须位于前 10%；\n四、在道德风尚、学术研究、学科竞赛或社会实践方面表现突出。",
     "source_chunk_ids": [
       0
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 2,
@@ -23,7 +23,7 @@
     "source_chunk_ids": [
       1
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 3,
@@ -36,7 +36,7 @@
     "source_chunk_ids": [
       2
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 4,
@@ -49,7 +49,7 @@
     "source_chunk_ids": [
       3
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 5,
@@ -62,7 +62,7 @@
     "source_chunk_ids": [
       4
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 6,
@@ -75,7 +75,7 @@
     "source_chunk_ids": [
       5
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 7,
@@ -95,7 +95,7 @@
       6,
       22
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 8,
@@ -108,7 +108,7 @@
     "source_chunk_ids": [
       7
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 9,
@@ -128,7 +128,7 @@
       9,
       25
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 10,
@@ -141,7 +141,7 @@
     "source_chunk_ids": [
       10
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 11,
@@ -154,26 +154,26 @@
     "source_chunk_ids": [
       11
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 12,
     "type": "numeric",
     "difficulty": "easy",
-    "question": "学生请病假5天需要谁来审批？要提交什么证明？",
+    "question": "学生怎么请假5天？要提交什么证明？",
     "target_doc": "南昌大学学生请假与考勤管理办法",
     "target_article": "第二条",
     "ground_truth": "学生因病或因事不能按时上课的，必须办理书面请假手续：\n一、请假 3 天以内的，由辅导员（班主任）审批；\n二、请假 3 天以上至 7 天的，由学院主管学生工作党委副书记审批；\n三、请假 7 天以上的，由学院院长审批，并报党委学生工作部备案。\n病假须附学校医院或二级甲等以上医院诊断证明书。",
     "source_chunk_ids": [
       12
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 13,
     "type": "numeric",
     "difficulty": "medium",
-    "question": "一门课缺课累计超过多少比例就会失去考试资格？",
+    "question": "一门课缺课多少会失去考试资格？",
     "target_doc": [
       "南昌大学学生请假与考勤管理办法",
       "南昌大学本科生学籍管理办法"
@@ -187,33 +187,33 @@
       13,
       78
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 14,
     "type": "paraphrase",
     "difficulty": "medium",
-    "question": "老是翘课会有什么后果？翘多少个学时最严重会被开除？",
+    "question": "老是翘课会有什么后果？多严重会被开除？",
     "target_doc": "南昌大学学生请假与考勤管理办法",
     "target_article": "第四条",
     "ground_truth": "学生未经批准擅自缺课者，按旷课处理。一学期内无故旷课累计达到以下学时者，分别给予如下纪律处分：\n一、旷课达 10-19 学时者，给予警告处分；\n二、旷课达 20-29 学时者，给予严重警告处分；\n三、旷课达 30-39 学时者，给予记过处分；\n四、旷课达 40 学时以上者，给予留校察看或开除学籍处分。",
     "source_chunk_ids": [
       14
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 15,
     "type": "direct",
     "difficulty": "easy",
-    "question": "南昌大学对学生违纪处分一共有哪几种？",
+    "question": "南昌大学的学生违纪处分有哪些？",
     "target_doc": "南昌大学学生违纪处分办法",
     "target_article": "第四条",
     "ground_truth": "学生违纪处分的种类分为五种：\n1. **警告**；\n2. **严重警告**；\n3. **记过**；\n4. **留校察看**；\n5. **开除学籍**。",
     "source_chunk_ids": [
       18
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 16,
@@ -226,7 +226,7 @@
     "source_chunk_ids": [
       19
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 17,
@@ -239,7 +239,7 @@
     "source_chunk_ids": [
       20
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 18,
@@ -259,7 +259,7 @@
       19,
       0
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 19,
@@ -272,7 +272,7 @@
     "source_chunk_ids": [
       30
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 20,
@@ -285,7 +285,7 @@
     "source_chunk_ids": [
       31
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 21,
@@ -298,20 +298,20 @@
     "source_chunk_ids": [
       33
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 22,
     "type": "paraphrase",
     "difficulty": "medium",
-    "question": "想保研的话从申请到最终确定名单要经过哪些环节？名单要公示多久？",
+    "question": "想保研的话要经过哪些环节？最终名单要公示多久？",
     "target_doc": "南昌大学推荐优秀应届本科毕业生免试攻读硕士学位研究生工作实施办法",
     "target_article": "第七条",
     "ground_truth": "推免工作按以下步骤进行：\n1. **公布方案与名额**：学校推免工作领导小组确定并下达各学院推免名额及实施细则；\n2. **个人申请**：符合条件的学生向所在学院提出书面申请，并提交成绩单及各项获奖、论文证明原件；\n3. **学院专家审核小组鉴定**：学院成立不少于 5 人的专家审核小组，对申请人的科研创新成果、竞赛获奖进行公开答辩鉴定，排除抄袭或造假；\n4. **计算综合成绩并排序公示**：学院按综合成绩由高到低进行排序，确定拟推荐名单，并在学院网站公示 3 个工作日；\n5. **学校审定与上报**：学校推免工作领导小组审核汇总全校拟推荐名单，在校内公示 10 个工作日后，上报教育部“全国推荐优秀应届本科毕业生免试攻读研究生信息公开暨管理服务系统”。\n---",
     "source_chunk_ids": [
       34
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 23,
@@ -324,7 +324,7 @@
     "source_chunk_ids": [
       40
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 24,
@@ -337,7 +337,7 @@
     "source_chunk_ids": [
       41
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 25,
@@ -350,7 +350,7 @@
     "source_chunk_ids": [
       42
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 26,
@@ -363,7 +363,7 @@
     "source_chunk_ids": [
       49
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 27,
@@ -376,7 +376,7 @@
     "source_chunk_ids": [
       49
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 28,
@@ -389,7 +389,7 @@
     "source_chunk_ids": [
       50
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 29,
@@ -402,7 +402,7 @@
     "source_chunk_ids": [
       51
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 30,
@@ -415,20 +415,20 @@
     "source_chunk_ids": [
       52
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 31,
     "type": "direct",
     "difficulty": "medium",
-    "question": "哪些情况下学校不授予学士学位？",
+    "question": "哪些情况下毕业生拿不到学士学位？",
     "target_doc": "南昌大学本科毕业生学士学位授予实施细则",
     "target_article": "第五条",
     "ground_truth": "本科毕业生在校期间有下列情形之一者，不授予学士学位：\n1. 政治立场存在严重问题，有反对四项基本原则、危害国家安全等言行的；\n2. 违反学术道德规范，毕业论文（设计）存在抄袭、剽窃、伪造、买卖、代写等严重学术不端行为的；\n3. 在校期间受到“记过”及以上纪律处分且至毕业审核时处分尚未解除的；\n4. 毕业时仅获得结业证书、未取得毕业证书的；\n5. 平均学分绩点（GPA）低于 2.0 的。",
     "source_chunk_ids": [
       57
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 32,
@@ -441,7 +441,7 @@
     "source_chunk_ids": [
       58
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 33,
@@ -454,7 +454,7 @@
     "source_chunk_ids": [
       56
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 34,
@@ -467,7 +467,7 @@
     "source_chunk_ids": [
       62
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 35,
@@ -480,7 +480,7 @@
     "source_chunk_ids": [
       65
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 36,
@@ -493,7 +493,7 @@
     "source_chunk_ids": [
       66
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 37,
@@ -506,7 +506,7 @@
     "source_chunk_ids": [
       67
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 38,
@@ -519,7 +519,7 @@
     "source_chunk_ids": [
       76
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 39,
@@ -532,7 +532,7 @@
     "source_chunk_ids": [
       87
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 40,
@@ -545,20 +545,20 @@
     "source_chunk_ids": [
       85
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 41,
     "type": "direct",
     "difficulty": "medium",
-    "question": "开学后没有按时办理注册会有什么后果？",
+    "question": "开学后没有按时报名会有什么后果？",
     "target_doc": "南昌大学本科生学籍管理办法",
     "target_article": "第七条",
     "ground_truth": "每学期开学时，学生应当按学校规定日期办理注册手续。未按学校规定缴纳学费或者有其他不符合注册条件的不予注册。因故不能如期注册者，必须办理暂缓注册手续。未请假或者请假未获批准逾期两周未注册者，按自动退学处理。\n---",
     "source_chunk_ids": [
       74
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 42,
@@ -571,7 +571,7 @@
     "source_chunk_ids": [
       96
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 43,
@@ -584,7 +584,7 @@
     "source_chunk_ids": [
       94
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 44,
@@ -597,7 +597,7 @@
     "source_chunk_ids": [
       95
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 45,
@@ -610,7 +610,7 @@
     "source_chunk_ids": [
       97
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 46,
@@ -618,7 +618,7 @@
     "difficulty": "easy",
     "question": "食堂三楼的麻辣烫好不好吃？",
     "expected_behavior": "拒答并说明不在校规咨询范围",
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 47,
@@ -626,7 +626,7 @@
     "difficulty": "easy",
     "question": "这周末南昌天气怎么样，适合去梅岭爬山吗？",
     "expected_behavior": "拒答并说明不在校规咨询范围",
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 48,
@@ -634,7 +634,7 @@
     "difficulty": "easy",
     "question": "帮我写一篇大学英语四级的作文模板。",
     "expected_behavior": "拒答并说明不在校规咨询范围",
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 49,
@@ -642,7 +642,7 @@
     "difficulty": "easy",
     "question": "英雄联盟赛季末怎么快速冲分上王者？",
     "expected_behavior": "拒答并说明不在校规咨询范围",
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 50,
@@ -650,7 +650,7 @@
     "difficulty": "medium",
     "question": "南昌大学2026年在江西省的录取分数线是多少？",
     "expected_behavior": "拒答并说明不在校规咨询范围",
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 51,
@@ -665,7 +665,7 @@
       49,
       30
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 52,
@@ -680,7 +680,7 @@
       0,
       42
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   },
   {
     "id": 53,
@@ -695,6 +695,6 @@
       20,
       66
     ],
-    "review_status": "待审核"
+    "review_status": "已确定"
   }
 ]
