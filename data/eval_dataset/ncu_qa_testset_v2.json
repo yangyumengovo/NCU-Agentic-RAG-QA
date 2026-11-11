@@ -618,7 +618,8 @@
     "difficulty": "easy",
     "question": "食堂三楼的麻辣烫好不好吃？",
     "expected_behavior": "拒答并说明不在校规咨询范围",
-    "review_status": "已确定"
+    "review_status": "已确定",
+    "subtype": "完全无关"
   },
   {
     "id": 47,
@@ -626,7 +627,8 @@
     "difficulty": "easy",
     "question": "这周末南昌天气怎么样，适合去梅岭爬山吗？",
     "expected_behavior": "拒答并说明不在校规咨询范围",
-    "review_status": "已确定"
+    "review_status": "已确定",
+    "subtype": "完全无关"
   },
   {
     "id": 48,
@@ -634,7 +636,8 @@
     "difficulty": "easy",
     "question": "帮我写一篇大学英语四级的作文模板。",
     "expected_behavior": "拒答并说明不在校规咨询范围",
-    "review_status": "已确定"
+    "review_status": "已确定",
+    "subtype": "完全无关"
   },
   {
     "id": 49,
@@ -642,7 +645,8 @@
     "difficulty": "easy",
     "question": "英雄联盟赛季末怎么快速冲分上王者？",
     "expected_behavior": "拒答并说明不在校规咨询范围",
-    "review_status": "已确定"
+    "review_status": "已确定",
+    "subtype": "完全无关"
   },
   {
     "id": 50,
@@ -650,7 +654,8 @@
     "difficulty": "medium",
     "question": "南昌大学2026年在江西省的录取分数线是多少？",
     "expected_behavior": "拒答并说明不在校规咨询范围",
-    "review_status": "已确定"
+    "review_status": "已确定",
+    "subtype": "校园相关但库外"
   },
   {
     "id": 51,
@@ -696,5 +701,140 @@
       66
     ],
     "review_status": "已确定"
+  },
+  {
+    "id": 54,
+    "type": "拒答",
+    "subtype": "完全无关",
+    "difficulty": "easy",
+    "question": "周杰伦今年会在南昌开演唱会吗？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 55,
+    "type": "拒答",
+    "subtype": "完全无关",
+    "difficulty": "easy",
+    "question": "考研数学一应该怎么复习？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 56,
+    "type": "拒答",
+    "subtype": "完全无关",
+    "difficulty": "easy",
+    "question": "帮我推荐一款适合写论文的笔记本电脑。",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 57,
+    "type": "拒答",
+    "subtype": "完全无关",
+    "difficulty": "easy",
+    "question": "南昌地铁一号线末班车是几点？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 58,
+    "type": "拒答",
+    "subtype": "校园相关但库外",
+    "difficulty": "hard",
+    "question": "南昌大学一年学费大概是多少？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 59,
+    "type": "拒答",
+    "subtype": "校园相关但库外",
+    "difficulty": "hard",
+    "question": "图书馆周末几点开门？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 60,
+    "type": "拒答",
+    "subtype": "校园相关但库外",
+    "difficulty": "hard",
+    "question": "学校有什么社团？怎么加入街舞社？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 61,
+    "type": "拒答",
+    "subtype": "校园相关但库外",
+    "difficulty": "hard",
+    "question": "校医院看病能刷医保卡报销吗？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 62,
+    "type": "拒答",
+    "subtype": "校园相关但库外",
+    "difficulty": "hard",
+    "question": "新生军训一般安排在什么时候？持续多久？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 63,
+    "type": "拒答",
+    "subtype": "校园相关但库外",
+    "difficulty": "hard",
+    "question": "学校到昌北机场有没有校车？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 64,
+    "type": "拒答",
+    "subtype": "语料内无答案",
+    "difficulty": "hard",
+    "question": "转专业面试一般都考些什么内容？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 65,
+    "type": "拒答",
+    "subtype": "语料内无答案",
+    "difficulty": "hard",
+    "question": "国家奖学金的钱一般几月份能到账？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 66,
+    "type": "拒答",
+    "subtype": "语料内无答案",
+    "difficulty": "hard",
+    "question": "记过处分到期后申请解除的具体流程是什么？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 67,
+    "type": "拒答",
+    "subtype": "语料内无答案",
+    "difficulty": "hard",
+    "question": "优秀学生奖学金评选时班级民主评议具体怎么打分？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
+  },
+  {
+    "id": 68,
+    "type": "拒答",
+    "subtype": "语料内无答案",
+    "difficulty": "hard",
+    "question": "绩点3.8能保研到什么层次的学校？",
+    "expected_behavior": "拒答/如实说明制度库无相关规定",
+    "review_status": "待审核"
   }
 ]

@@ -194,7 +194,8 @@
                     </div>
 
                     <p class="text-xs text-slate-600 leading-relaxed mb-5 font-sans">
-                        本系统支持多轮追问指代消解与数据落盘。所有问答历史及点赞评价均自动存储于 SQLite 数据库 `ncu_rag_history.db` 中。
+                        本系统由 <strong class="text-ncu-official">LangGraph Agent</strong> 驱动：LLM 自主决策调用校规检索、硬规则校验、条文溯源等工具，
+                        支持多轮追问、自适应补检索与拒答防幻觉；检索层为 FAISS + BM25 双路召回 + RRF 融合 + 交叉编码器精排。问答历史落盘 SQLite。
                     </p>
 
                     <!-- 热门快捷提问 -->
@@ -235,12 +236,34 @@
 
                         <!-- 路由指示印章 -->
                         <div v-if="msg.role === 'assistant'" class="mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
-                            <span v-if="msg.route === 'POLICY_RAG'" class="px-2.5 py-0.5 rounded bg-ncu-official/10 text-ncu-official border border-ncu-official/30 text-[10px] font-bold inline-flex items-center gap-1">
+                            <span v-if="msg.route === 'AGENT'" class="px-2.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-300 text-[10px] font-bold inline-flex items-center gap-1">
+                                <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500"></i> Agentic 模式 · LLM 自主工具调用
+                            </span>
+                            <span v-else-if="msg.route === 'POLICY_RAG'" class="px-2.5 py-0.5 rounded bg-ncu-official/10 text-ncu-official border border-ncu-official/30 text-[10px] font-bold inline-flex items-center gap-1">
                                 <i data-lucide="shield-check" class="w-3.5 h-3.5 text-ncu-official"></i> 校规制度检索通道
                             </span>
                             <span v-else class="px-2.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-medium inline-flex items-center gap-1">
                                 <i data-lucide="message-circle" class="w-3.5 h-3.5 text-slate-500"></i> 通用咨询问候通道
                             </span>
+                        </div>
+
+                        <!-- Agent 工具调用轨迹 -->
+                        <div v-if="msg.role === 'assistant' && msg.toolTrace && msg.toolTrace.length"
+                             class="mb-3 p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                            <div class="text-[10px] font-bold text-slate-500 flex items-center gap-1 mb-1">
+                                <i data-lucide="workflow" class="w-3.5 h-3.5 text-ncu-official"></i>
+                                AGENT 工具调用轨迹（模型自主决策）
+                            </div>
+                            <div v-for="(t, tIdx) in msg.toolTrace" :key="tIdx" class="text-[11px] leading-5">
+                                <div v-if="t.kind === 'call'" class="flex items-start gap-1.5 text-ncu-official">
+                                    <i data-lucide="wrench" class="w-3 h-3 mt-1 shrink-0"></i>
+                                    <span class="break-all">调用 <strong>{{ t.name }}</strong> <span class="text-slate-500">{{ JSON.stringify(t.args) }}</span></span>
+                                </div>
+                                <div v-else class="flex items-start gap-1.5 text-slate-500 pl-5">
+                                    <i data-lucide="package-check" class="w-3 h-3 mt-1 shrink-0"></i>
+                                    <span class="break-all">↳ {{ t.preview }}</span>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- 指代消解识别提示标签 (当包含指代补全时展示) -->
@@ -290,7 +313,7 @@
                     </div>
                     <div class="bg-white px-4 py-3 rounded-2xl rounded-bl-none text-xs text-ncu-official font-semibold flex items-center gap-2 border border-slate-300 shadow-md">
                         <span class="w-2 h-2 rounded-full bg-ncu-official pulse-ncu"></span>
-                        正在调取规章制度切片，答案同步落盘至 SQLite...
+                        Agent 正在规划工具调用与检索推理，回答将附调用轨迹与条文出处...
                     </div>
                 </div>
 
@@ -329,10 +352,11 @@
                     messages: [],
                     studentType: 'undergraduate',
                     suggestions: [
-                        "南昌大学申请学士学位的 GPA 要求是多少？",
-                        "受过记过处分会影响它吗？",
-                        "缺考满多少比例会被取消考试资格？",
-                        "挂科会影响保研吗？"
+                        "我绩点3.1，有一次记过处分，能申请转专业吗？",
+                        "分析一下转专业和保研的要求有什么区别？",
+                        "一学期挂科太多会不会被退学？",
+                        "宿舍最多能用多大功率的电器？",
+                        "食堂哪个窗口的红烧肉最好吃？"
                     ],
                     chatHistory: [],
                     currentChatIdx: 0
@@ -431,7 +455,8 @@
                         role: 'assistant',
                         content: '',
                         sources: [],
-                        route: 'POLICY_RAG',
+                        route: 'AGENT',
+                        toolTrace: [],
                         original_query: text,
                         resolved_query: text,
                         isStreaming: true,
@@ -476,11 +501,15 @@
                                     try {
                                         const parsed = JSON.parse(jsonStr);
                                         if (parsed.type === 'metadata') {
-                                            this.messages[assistantMsgIdx].route = parsed.route || 'POLICY_RAG';
-                                            this.messages[assistantMsgIdx].sources = parsed.sources || [];
-                                            this.messages[assistantMsgIdx].resolved_query = parsed.resolved_query || text;
+                                            this.messages[assistantMsgIdx].route = parsed.route || 'AGENT';
+                                            if (parsed.sources) this.messages[assistantMsgIdx].sources = parsed.sources;
+                                            if (parsed.resolved_query) this.messages[assistantMsgIdx].resolved_query = parsed.resolved_query;
                                         } else if (parsed.type === 'content') {
                                             this.messages[assistantMsgIdx].content += parsed.delta;
+                                        } else if (parsed.type === 'tool_call') {
+                                            this.messages[assistantMsgIdx].toolTrace.push({ kind: 'call', name: parsed.name, args: parsed.args });
+                                        } else if (parsed.type === 'tool_result') {
+                                            this.messages[assistantMsgIdx].toolTrace.push({ kind: 'result', name: parsed.name, preview: parsed.preview });
                                         } else if (parsed.type === 'done') {
                                             break;
                                         }

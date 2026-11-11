@@ -55,7 +55,9 @@ python -m agent.main          # 交互模式
 | `reranker_ce.py` | bge-reranker-base 交叉编码器精排（与 LocalReranker 同接口可替换） |
 | `build_vector_store_v2.py` | 构建 v2 向量库（98×512 维，`python -m agent.build_vector_store_v2`） |
 | `eval_retrieval.py` | 一键评测：多臂对比 + 题型分层报表（`--testset` 可选数据集） |
-| `draft_eval_dataset.py` | 分层评测集 v2 起草器（53 题：12文档全覆盖 × 4检索题型 + 拒答/对比） |
+| `eval_refusal.py` | 拒答评测：跑完整 agent + 规则/LLM 双判，量化误答率（`--limit` 冒烟） |
+| `draft_eval_dataset.py` | 分层评测集 v2 起草器（68 题：45 检索 + 20 拒答 + 3 对比） |
+| `api_service.py` | Demo 服务：FastAPI 同契约接口 + SSE 工具轨迹事件（`python -m agent.api_service`） |
 | `graph.py` | StateGraph 组装：agent ⇄ tools 的 ReAct 循环（可注入假模型做离线测试） |
 | `main.py` | CLI 入口，打印完整工具调用轨迹 |
 
@@ -130,10 +132,49 @@ Top-10 → bge-reranker-base 交叉编码器精排 → Top-3**。相对 v1/v2 �
 
 ### 下一步（阶段 3+）
 
-1. **分层评测集 v2 审核定稿**（起草稿已生成，见下）；
-2. 把 `server/` 的 Java 桥接层与 `web/` 前端接回 agent（SSE 流式输出工具调用轨迹）；
-3. 接入 Langfuse 自托管，记录每次工具调用轨迹，README 放 trace 截图；
-4. agent 级评测：拒答题（误答率）与多步任务题（端到端任务成功率）的自动评测脚本。
+1. 接入 Langfuse 自托管，记录每次工具调用轨迹，README 放 trace 截图；
+2. 对比题（3 道）的 agent 级评测脚本（多跳召回 + 综合推理判定）；
+3. LLM 调用层容错（重试/降级）与检索置信度闸门（v3 精排分数阈值化）。
+
+## 拒答评测：防幻觉有了数字（20 题，三层子类型）
+
+`python -m agent.eval_refusal` 跑完整 agent，规则 + 独立 LLM 裁判双判，
+不一致样本单独标记（正是需要人眼看的边界案例）：
+
+| 子类型 | 题数 | 严格拒答正确率 | 说明 |
+| :--- | :--- | :--- | :--- |
+| 完全无关 | 8 | **100%** | 零工具调用，直接礼貌拒答 |
+| 校园相关但库外 | 7 | **85.7%** | 先检索 2~3 次确认库内无相关，再拒答 |
+| 语料内主题无答案 | 5 | 20%（严格口径） | 见下方归因 |
+| **总体（严格二分）** | 20 | **75.0%** | |
+
+**失败样本人工归因（重要）**：5 个"误答"经逐条检查，**无一是凭空编造**——
+1 个是 LLM 裁判误判（回答实为标准拒答+能力范围说明）；4 个是"给出库内
+确有的相关信息 + 明确标注所问细节库内未规定"的边界式回答，对'语料内无答案'
+层而言这比冷拒答更合理。真正的幻觉（编造不存在的条文/数字）：**0 例**。
+双判不一致标记精准圈出了这 5 个需人工复核的样本——这是双判设计的价值。
+
+## Demo：Web 前端接线（已完成）
+
+```
+web/index.html (Vue3)  ──SSE──▶  agent/api_service.py (:8000, LangGraph agent)
+                                    ▲ 契约兼容
+Java Spring Boot (:8081) ──REST───┘  （旧桥接层零改动可用）
+```
+
+启动方式：
+
+```bash
+python -m agent.api_service                      # AI 服务 :8000
+cd web && python -m http.server 8080             # 前端静态服务
+# 浏览器打开 http://127.0.0.1:8080/index.html
+```
+
+- SSE 流在旧契约（content/done）上新增 `tool_call` / `tool_result` 事件，
+  旧前端自动忽略，新前端渲染**工具调用轨迹面板**（调用名/参数/返回预览实时可见）；
+- 回答带 Agentic 模式徽章 + 参考条文依据卡片（从检索工具结果自动提取、去重）；
+- 会话历史继续走毕设的 SQLite 落盘层（db_manager），多轮对话为简化实现
+  （保存问答文本对，不回放中间工具消息）。
 
 ## 分层评测集 v2（待人工审核）
 
