@@ -22,6 +22,24 @@ def search_regulations(
         student_type: 作用域过滤，可选 "undergraduate"（本科生，默认）、"postgraduate"、"all"。
         top_k: 返回的最相关条文数量，默认 3。
     """
+    from vector_store_builder import LocalVectorStore
+    from remarker import LocalReranker
+    _store = LocalVectorStore.load(str(VECTOR_STORE_PATH))
+    _reranker = LocalReranker()
+    candidates = _store.hybrid_query(query, top_k=10, student_type=student_type)
+    results = _reranker.rerank(query, candidates, top_k=top_k)
+    return json.dumps(
+        [
+            {
+                "doc_title": item["chunk"]["doc_title"],
+                "chapter": item["chunk"]["chapter"],
+                "article": item["chunk"]["article"],
+                "content": item["chunk"]["content"],
+                "score": item["rerank_score"],
+            } for item in results
+        ],
+        ensure_ascii=False
+    )
     # ==================== TODO(你来实现) ====================
     # 实现提示（完成后删除本注释块）：
     #
@@ -47,4 +65,4 @@ def search_regulations(
     #       } for item in results
     #   ], ensure_ascii=False)
     # ==========================================================
-    return not_implemented("search_regulations")
+    #return not_implemented("search_regulations")
