@@ -54,7 +54,8 @@ python -m agent.main          # 交互模式
 | `retrieval_v3.py` | v3 检索：FAISS Dense + BM25 双路召回 → RRF 融合（阶段 2） |
 | `reranker_ce.py` | bge-reranker-base 交叉编码器精排（与 LocalReranker 同接口可替换） |
 | `build_vector_store_v2.py` | 构建 v2 向量库（98×512 维，`python -m agent.build_vector_store_v2`） |
-| `eval_retrieval.py` | 一键评测：v1 vs v2 同口径对比 + alpha 扫描 + 失败分析 |
+| `eval_retrieval.py` | 一键评测：多臂对比 + 题型分层报表（`--testset` 可选数据集） |
+| `draft_eval_dataset.py` | 分层评测集 v2 起草器（53 题：12文档全覆盖 × 4检索题型 + 拒答/对比） |
 | `graph.py` | StateGraph 组装：agent ⇄ tools 的 ReAct 循环（可注入假模型做离线测试） |
 | `main.py` | CLI 入口，打印完整工具调用轨迹 |
 
@@ -129,8 +130,27 @@ Top-10 → bge-reranker-base 交叉编码器精排 → Top-3**。相对 v1/v2 �
 
 ### 下一步（阶段 3+）
 
-1. 扩充评测集（30~50 题，覆盖更多口语化问法与多文档问题）；
+1. **分层评测集 v2 审核定稿**（起草稿已生成，见下）；
 2. 把 `server/` 的 Java 桥接层与 `web/` 前端接回 agent（SSE 流式输出工具调用轨迹）；
 3. 接入 Langfuse 自托管，记录每次工具调用轨迹，README 放 trace 截图；
-4. 多步任务评测：构造"判断我能不能保研，不行的话转专业来不来得及"类任务集，
-   量化 agent 的端到端任务成功率。
+4. agent 级评测：拒答题（误答率）与多步任务题（端到端任务成功率）的自动评测脚本。
+
+## 分层评测集 v2（待人工审核）
+
+`python -m agent.draft_eval_dataset` 生成 53 题（12/12 文档全覆盖）：
+直检 16 / 改述 16 / 数字 10 / 组合 3（计入检索指标）+ 拒答 5 / 对比 3（agent 级，暂不计入）。
+
+**审核流程**（约 1~2 小时，无需校规知识）：对照
+`data/eval_dataset/ncu_qa_testset_v2_review.md`（每题附来源原文）逐题检查
+①问题是否自然 ②改述题是否真的换了口语用词 ③答案是否在原文里，
+然后把 JSON 里对应条目的 `review_status` 改为 已确认 / 直接改写 question / 已删除。
+
+审核前后都能跑分层评测（只跳过标记为"已删除"的条目）：
+
+```bash
+python -m agent.eval_retrieval --testset data/eval_dataset/ncu_qa_testset_v2.json
+```
+
+起草稿临时数据（45 检索题）：v3 Hit@1 88.9% / Hit@3 100% / MRR@3 0.937，
+v1 为 73.3%/95.6%/0.830。注意：LLM 起草的题整体偏易（v1 Hit@3 也有 95.6%），
+区分度主要体现在 Hit@1；审核时可把过于直白的题改写得 harder。
