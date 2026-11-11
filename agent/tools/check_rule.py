@@ -16,6 +16,10 @@ def check_rule(question: str) -> str:
     Args:
         question: 用户的原始问题（需包含 GPA/绩点/查重率/功率等数值与处分等关键信息）。
     """
+    from rule_engine import RuleGuidedEngine
+    result = RuleGuidedEngine().evaluate_rules(question)
+    import json
+    return json.dumps(result, ensure_ascii=False)
     # ==================== TODO(你来实现) ====================
     # 实现提示（完成后删除本注释块）：
     #
@@ -27,4 +31,4 @@ def check_rule(question: str) -> str:
     #   import json
     #   return json.dumps(result, ensure_ascii=False)
     # ==========================================================
-    return not_implemented("check_rule")
+    #return not_implemented("check_rule")
