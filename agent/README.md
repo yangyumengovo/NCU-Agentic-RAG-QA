@@ -32,7 +32,7 @@ source .venv/Scripts/activate # Git Bash
 # 2. 配置密钥（首次）：复制 .env.example 为 .env 并填入智谱 API Key
 #    套餐 key 用 coding 端点 + glm-5.3；免费 key 用通用端点 + glm-4-flash（.env 里有注释说明）
 
-# 3. 运行
+# 3. 运行（首次会自动下载 bge-small-zh-v1.5 模型 ~95MB，走 hf-mirror 镜像）
 python -m agent.main --ask "我绩点3.1有记过处分，能转专业吗"
 python -m agent.main          # 交互模式
 ```
@@ -49,6 +49,10 @@ python -m agent.main          # 交互模式
 | `tools/check_rule.py` | ✅ 硬规则校验（复用毕设 `rule_engine`） |
 | `tools/compare_policies.py` | ✅ 跨文档政策对比（工具取数，对比推理由模型完成） |
 | `tools/__init__.py` | 工具注册表 TOOLS（新增工具在此登记） |
+| `embeddings.py` | 真 embedding 后端：本地 bge-small-zh-v1.5（阶段 1） |
+| `retrieval_v2.py` | v2 混合检索：真 Dense + 复用 v1 Sparse，接口与 v1 一致 |
+| `build_vector_store_v2.py` | 构建 v2 向量库（98×512 维，`python -m agent.build_vector_store_v2`） |
+| `eval_retrieval.py` | 一键评测：v1 vs v2 同口径对比 + alpha 扫描 + 失败分析 |
 | `graph.py` | StateGraph 组装：agent ⇄ tools 的 ReAct 循环（可注入假模型做离线测试） |
 | `main.py` | CLI 入口，打印完整工具调用轨迹 |
 
@@ -69,9 +73,36 @@ python -m agent.main          # 交互模式
 3. **子串匹配的假阳性**：条号"七"能匹配"第十七条/第二十七条"——匹配必须带上下文
    （"第七条"整体匹配），这类边界在 RAG 溯源场景是高频 bug。
 
-## 阶段 1 提醒（下一步：换真 embedding）
+## 阶段 1 成果：真 embedding 升级（已完成）
 
-`vector_store_builder.py` 的"Dense 密集特征"是字符级 TF-IDF，不是语义向量。
-工具跑通后的第一件事就是把 embedding 换成真模型（智谱 embedding-3 或开源 bge-m3），
-保留 TF-IDF 版做基线，用 `data/eval_dataset/ncu_qa_testset.json` 跑
-Hit@K / MRR 对比——这就是简历上"混合检索 Hit@3 从 X 提升到 Y"的数据来源。
+旧版 `vector_store_builder.py` 的"Dense 密集特征"实为字符级 TF-IDF（词面匹配，
+"挂科"永远匹配不到"不及格"）。阶段 1 换成本地 **bge-small-zh-v1.5**（512 维语义
+向量，零 API 成本、可离线复现），Sparse 通道与重排器不动——v1→v2 的唯一变量是
+Dense 通道，对比口径与毕设论文一致（`python -m agent.eval_retrieval` 重跑可复现）：
+
+| 后端（同管线：混合 alpha=0.6 + 重排） | Hit@1 | Hit@3 | MRR@3 |
+| :--- | :--- | :--- | :--- |
+| v1 字符 TF-IDF Dense（基线） | 50.0% | 60.0% | 0.5500 |
+| **v2 bge 语义 Dense** | **60.0%** | **70.0%** | **0.6333** |
+
+- alpha 扫描（0.4~0.8）显示结论稳健：v2 各配置的 Hit@1/MRR 均不低于 v1 最优配置；
+- 口语化问法收益最直观："挂科太多会被开除吗"这类与原文"不及格/退学"词面零重合的
+  问题，v2 能直接召回正确条文；
+- 完整报告（含逐题对比与失败分析）：`data/eval_dataset/stage1_embedding_comparison.md`。
+  已知数据问题：题 4 的评测标注与切片内容错位（详见报告），且评测集仅 10 题，
+  **扩充评测集到 30~50 题是可信度的关键下一步**。
+
+### 环境变量
+
+| 变量 | 默认 | 说明 |
+| :--- | :--- | :--- |
+| `RETRIEVAL_BACKEND` | `auto` | `auto`/`v2`/`v1`：检索后端切换（auto=有 v2 库就用 v2） |
+| `EMBEDDING_MODEL` | `BAAI/bge-small-zh-v1.5` | 本地 embedding 模型，可换 bge-base/large 提精度 |
+
+### 下一步（阶段 2+）
+
+1. 扩充评测集（30~50 题，覆盖更多口语化问法与多文档问题）；
+2. 把 `server/` 的 Java 桥接层与 `web/` 前端接回 agent（SSE 流式输出工具调用轨迹）；
+3. 接入 Langfuse 自托管，记录每次工具调用轨迹，README 放 trace 截图；
+4. 多步任务评测：构造"判断我能不能保研，不行的话转专业来不来得及"类任务集，
+   量化 agent 的端到端任务成功率。

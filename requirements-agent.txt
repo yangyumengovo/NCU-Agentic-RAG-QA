@@ -1,7 +1,10 @@
-# agent/ 骨架运行所需（安装：pip install -r requirements-agent.txt）
+# agent/ 运行所需（安装：pip install -r requirements-agent.txt）
 langgraph>=1.0
 langchain-openai>=1.0
 python-dotenv>=1.0
+
+# v2 真 embedding 检索后端（本地 bge 模型，首次运行自动下载）
+sentence-transformers>=3.0
 
 # 填写工具实现时需要（复用毕设 scripts/ 里的检索与规则代码）
 numpy
