@@ -1,8 +1,10 @@
-"""工具 3：硬规则校验（封装毕设已有的 rule_engine，最简单，建议第一个实现）。"""
+"""工具 3：硬规则校验（封装毕设已有的 rule_engine）。"""
+
+import json
 
 from langchain_core.tools import tool
 
-from agent.tools._stub import not_implemented
+from rule_engine import RuleGuidedEngine  # scripts/ 已在 sys.path
 
 
 @tool
@@ -16,19 +18,14 @@ def check_rule(question: str) -> str:
     Args:
         question: 用户的原始问题（需包含 GPA/绩点/查重率/功率等数值与处分等关键信息）。
     """
-    from rule_engine import RuleGuidedEngine
     result = RuleGuidedEngine().evaluate_rules(question)
-    import json
+    if not result.get("has_rule_evaluation"):
+        # 没提取到数值条件时明确告知，模型就不会拿空结果硬编结论
+        return json.dumps(
+            {
+                "has_rule_evaluation": False,
+                "hint": "未识别出可校验的数值条件（GPA/绩点、处分、查重率%、电器功率W）",
+            },
+            ensure_ascii=False,
+        )
     return json.dumps(result, ensure_ascii=False)
-    # ==================== TODO(你来实现) ====================
-    # 实现提示（完成后删除本注释块）：
-    #
-    #   from rule_engine import RuleGuidedEngine
-    #   result = RuleGuidedEngine().evaluate_rules(question)
-    #   # result 形如:
-    #   # {"has_rule_evaluation": True,
-    #   #  "evaluations": [{"rule_name": "...", "passed": bool, "details": "..."}]}
-    #   import json
-    #   return json.dumps(result, ensure_ascii=False)
-    # ==========================================================
-    #return not_implemented("check_rule")

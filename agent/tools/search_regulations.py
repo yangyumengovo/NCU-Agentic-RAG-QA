@@ -1,11 +1,10 @@
-"""工具 1：校规语义检索（封装毕设已有的 混合检索 + 重排）。"""
+"""工具 1：校规语义检索（封装毕设已有的 混合检索 + 重排，经 _retrieval 共享后端复用）。"""
 
 import json
 
 from langchain_core.tools import tool
 
-from agent.config import VECTOR_STORE_PATH
-from agent.tools._stub import not_implemented
+from agent.tools._retrieval import hybrid_search
 
 
 @tool
@@ -22,47 +21,12 @@ def search_regulations(
         student_type: 作用域过滤，可选 "undergraduate"（本科生，默认）、"postgraduate"、"all"。
         top_k: 返回的最相关条文数量，默认 3。
     """
-    from vector_store_builder import LocalVectorStore
-    from remarker import LocalReranker
-    _store = LocalVectorStore.load(str(VECTOR_STORE_PATH))
-    _reranker = LocalReranker()
-    candidates = _store.hybrid_query(query, top_k=10, student_type=student_type)
-    results = _reranker.rerank(query, candidates, top_k=top_k)
-    return json.dumps(
-        [
-            {
-                "doc_title": item["chunk"]["doc_title"],
-                "chapter": item["chunk"]["chapter"],
-                "article": item["chunk"]["article"],
-                "content": item["chunk"]["content"],
-                "score": item["rerank_score"],
-            } for item in results
-        ],
-        ensure_ascii=False
-    )
-    # ==================== TODO(你来实现) ====================
-    # 实现提示（完成后删除本注释块）：
-    #
-    #   from vector_store_builder import LocalVectorStore   # scripts/ 已在 sys.path
-    #   from reranker import LocalReranker
-    #
-    #   # 建议在模块级只加载一次（98 个切片加载很快，但没必要每次调用都做）：
-    #   _store = LocalVectorStore.load(str(VECTOR_STORE_PATH))
-    #   _reranker = LocalReranker()
-    #
-    #   candidates = _store.hybrid_query(query, top_k=10, student_type=student_type)
-    #   results = _reranker.rerank(query, candidates, top_k=top_k)
-    #   # results 是 [{"rerank_score": float, "chunk": {...}}, ...]
-    #
-    #   组装返回值（JSON 字符串，模型直接阅读）：
-    #   return json.dumps([
-    #       {
-    #           "doc_title": item["chunk"]["doc_title"],
-    #           "chapter":   item["chunk"]["chapter"],
-    #           "article":   item["chunk"]["article"],
-    #           "content":   item["chunk"]["content"],
-    #           "score":     item["rerank_score"],
-    #       } for item in results
-    #   ], ensure_ascii=False)
-    # ==========================================================
-    #return not_implemented("search_regulations")
+    # 检索逻辑在 _retrieval.hybrid_search（懒加载向量库与重排器，进程内只加载一次）
+    results = hybrid_search(query, student_type=student_type, top_k=top_k)
+    if not results:
+        # 给模型的"自纠错线索"：换关键词重试，而不是硬答
+        return json.dumps(
+            {"results": [], "hint": "未检索到相关条文，建议更换关键词后重试"},
+            ensure_ascii=False,
+        )
+    return json.dumps({"results": results}, ensure_ascii=False)
