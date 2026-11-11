@@ -1,13 +1,14 @@
 """检索后端：懒加载、进程内单例，供多个工具共用。
 
-支持 v1/v2 双后端切换（环境变量 RETRIEVAL_BACKEND，默认 auto）：
-- v1: 毕设原版（字符 TF-IDF 假 Dense + 词频 Sparse），作为基线保留；
-- v2: 真 Dense（bge 语义向量）+ 复用 v1 的 Sparse 通道，阶段 1 升级成果；
-- auto: 存在 v2 向量库就用 v2，否则回落 v1（clone 后未重建时也能跑）。
+支持 v1/v2/v3 三条管线（环境变量 RETRIEVAL_BACKEND，默认 auto 逐级降级）：
+- v1: 毕设原版（字符 TF-IDF 假 Dense + 词频 Sparse + 启发式重排），基线；
+- v2: bge 语义 Dense + v1 Sparse + 启发式重排（阶段 1）；
+- v3: FAISS + BM25 双路召回 → RRF 融合 → bge-reranker 交叉编码器精排（阶段 2）。
 
 设计要点：
 - 懒加载：agent 启动时不加载（纯闲聊用不到检索），首次调用才加载索引；
-- 进程内单例：向量库/重排器/切片 JSON 各只加载一次。
+- 管线成对切换：store 与对应重排器一起换（v3 的精排是交叉编码器，不是启发式）；
+- 进程内单例：索引/重排器/切片 JSON 各只加载一次。
 """
 
 import json
@@ -49,35 +50,43 @@ class _RetrievalBackend:
 
 
 _backend = _RetrievalBackend()
-_active_store = None
+_pipeline = None  # (后端名, store, rerank_fn)
 
 
-def _get_store():
-    global _active_store
-    if _active_store is None:
+def _get_pipeline():
+    """选择检索管线（RETRIEVAL_BACKEND=auto/v3/v2/v1），进程内只初始化一次。"""
+    global _pipeline
+    if _pipeline is None:
         mode = os.getenv("RETRIEVAL_BACKEND", "auto")
-        if mode in ("auto", "v2") and NPZ_PATH.exists():
+        if mode in ("auto", "v3"):
+            try:
+                from agent import reranker_ce
+                from agent.retrieval_v3 import HybridStoreV3
+
+                _pipeline = ("v3", HybridStoreV3(), reranker_ce.rerank)
+            except Exception as e:
+                if mode == "v3":
+                    raise RuntimeError(f"v3 后端不可用: {e}") from e
+                print(f"[retrieval] v3 不可用（{type(e).__name__}），降级 v2")
+        if _pipeline is None and mode in ("auto", "v2") and NPZ_PATH.exists():
             from agent.retrieval_v2 import HybridStoreV2
 
-            _active_store = HybridStoreV2()
-        elif mode == "v2":
-            raise RuntimeError(
-                "RETRIEVAL_BACKEND=v2 但未构建 v2 向量库，请先运行: python -m agent.build_vector_store_v2"
-            )
-        else:
-            _active_store = _backend.store  # v1 基线
-    return _active_store
+            _pipeline = ("v2", HybridStoreV2(), _backend.reranker.rerank)
+        if _pipeline is None:
+            _pipeline = ("v1", _backend.store, _backend.reranker.rerank)
+        print(f"[retrieval] 检索后端: {_pipeline[0]}")
+    return _pipeline
 
 
 def hybrid_search(query: str, student_type: str = "all", top_k: int = 3) -> list[dict]:
-    """混合检索 + 交叉重排（v1/v2 后端透明切换，返回结构一致）。
+    """混合检索 + 精排（v1/v2/v3 管线透明切换，返回结构一致）。
 
     返回按相关性降序的条文列表：
     [{"doc_title", "chapter", "article", "content", "score"}]
     """
-    store = _get_store()
+    _, store, rerank_fn = _get_pipeline()
     candidates = store.hybrid_query(query, top_k=10, student_type=student_type)
-    reranked = _backend.reranker.rerank(query, candidates, top_k=top_k)
+    reranked = rerank_fn(query, candidates, top_k=top_k)
     return [
         {
             "doc_title": item["chunk"]["doc_title"],

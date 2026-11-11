@@ -1,9 +1,12 @@
-"""阶段 1 一键评测：v1 假 Dense（字符TF-IDF） vs v2 真 Dense（bge）同口径对比。
+"""检索后端三臂一键评测：v1 / v2 / v3 同口径对比。
 
-口径与毕设 advanced_retrieval_tester.py 完全一致，保证数字可比：
-- 检索管线：混合检索(alpha=0.6, 粗筛Top10) + LocalReranker 重排；
+口径与毕设 advanced_retrieval_tester.py 保持一致，保证数字可比：
 - 命中判据：target_doc in doc_title 且 target_article 命中 article 或 chapter 字段；
-- 指标：Hit@1 / Hit@3 / Hit@5 / MRR@3。
+- 指标：Hit@1 / Hit@3 / Hit@5 / MRR@3；
+- 三条管线（召回通道 → 融合 → 重排）：
+    v1: 字符TF-IDF Dense + 词频Sparse，alpha=0.6 加权 → LocalReranker 启发式重排
+    v2: bge 语义 Dense + 词频Sparse，alpha=0.6 加权  → LocalReranker 启发式重排
+    v3: FAISS Dense + BM25 Sparse，RRF(k=60) 融合   → bge-reranker-base 交叉编码器精排
 
 用法：python -m agent.eval_retrieval
 """
@@ -13,139 +16,141 @@ from datetime import date
 
 from agent.config import DATA_DIR, VECTOR_STORE_PATH
 from agent.embeddings import EMBEDDING_MODEL
-from agent.retrieval_v2 import HybridStoreV2
 from reranker import LocalReranker
 from vector_store_builder import LocalVectorStore
 
 TESTSET_PATH = DATA_DIR / "eval_dataset" / "ncu_qa_testset.json"
-REPORT_PATH = DATA_DIR / "eval_dataset" / "stage1_embedding_comparison.md"
+REPORT_PATH = DATA_DIR / "eval_dataset" / "stage2_hybrid_rrf_comparison.md"
 TOP_K = 5
 
 
-def run_pipeline(store, reranker, query: str) -> list[dict]:
-    """与 agent 实际使用的检索管线一致：混合粗筛 Top10 → 重排取 TopK。"""
-    candidates = store.hybrid_query(query, top_k=10, student_type="all", alpha=0.6)
-    reranked = reranker.rerank(query, candidates, top_k=TOP_K)
-    return [item["chunk"] for item in reranked]
-
-
 def first_hit_rank(chunks: list[dict], item: dict):
+    """毕设判据 + 一处修复：目标条号可能是"第五条、第六条"（多条文），按、拆分后
+    任一命中即算——原判据下这类题永远无法匹配单个切片的 article 字段，属指标缺陷。"""
+    target_articles = [a.strip() for a in item["target_article"].split("、") if a.strip()]
     for rank, c in enumerate(chunks, 1):
-        if item["target_doc"] in c["doc_title"] and (
-            item["target_article"] in c["article"] or item["target_article"] in c["chapter"]
-        ):
-            return rank
+        if item["target_doc"] not in c["doc_title"]:
+            continue
+        for ta in target_articles:
+            if ta in c["article"] or ta in c["chapter"]:
+                return rank
     return None
 
 
-def evaluate(store, reranker, cases) -> tuple[dict, list]:
-    ranks = [first_hit_rank(run_pipeline(store, reranker, it["question"]), it) for it in cases]
+def make_pipeline(store, rerank_fn):
+    """闭包一条完整管线：召回粗筛 Top10 → 重排取 TopK（与 agent 实际使用一致）。"""
+
+    def search(query: str) -> list[dict]:
+        candidates = store.hybrid_query(query, top_k=10, student_type="all", alpha=0.6)
+        reranked = rerank_fn(query, candidates, top_k=TOP_K)
+        return [item["chunk"] for item in reranked]
+
+    return search
+
+
+def build_arms():
+    """按依赖可用性装配三臂（v3 依赖 faiss/jieba/rank_bm25/交叉编码器）。"""
+    reranker = LocalReranker()
+    arms = [
+        ("v1 字符TF-IDF+启发式重排", LocalVectorStore.load(str(VECTOR_STORE_PATH)), reranker.rerank),
+    ]
+    try:
+        from agent.retrieval_v2 import HybridStoreV2
+
+        arms.append(("v2 bge语义+启发式重排", HybridStoreV2(), reranker.rerank))
+    except Exception as e:
+        print(f"[eval] v2 跳过: {e}")
+    try:
+        from agent import reranker_ce
+        from agent.retrieval_v3 import HybridStoreV3
+
+        arms.append(("v3 FAISS+BM25+RRF+交叉精排", HybridStoreV3(), reranker_ce.rerank))
+    except Exception as e:
+        print(f"[eval] v3 跳过: {e}")
+    return arms
+
+
+def evaluate(search_fn, cases) -> tuple[dict, list]:
+    ranks = [first_hit_rank(search_fn(it["question"]), it) for it in cases]
     n = len(cases)
     metrics = {f"Hit@{k}": sum(r is not None and r <= k for r in ranks) / n for k in (1, 3, 5)}
     metrics["MRR@3"] = sum(1.0 / r for r in ranks if r is not None and r <= 3) / n
     return metrics, ranks
 
 
-def sweep_alpha(store, reranker, cases, alphas=(0.4, 0.5, 0.6, 0.7, 0.8)) -> list[dict]:
-    """alpha（语义/词频权重）扫描：检验结论对超参的稳健性。"""
-    rows = []
-    for alpha in alphas:
-        ranks = [
-            first_hit_rank(
-                [x["chunk"] for x in reranker.rerank(
-                    it["question"],
-                    store.hybrid_query(it["question"], top_k=10, student_type="all", alpha=alpha),
-                    top_k=TOP_K,
-                )],
-                it,
-            )
-            for it in cases
-        ]
-        n = len(cases)
-        rows.append(
-            {
-                "alpha": alpha,
-                "Hit@1": sum(r is not None and r <= 1 for r in ranks) / n,
-                "Hit@3": sum(r is not None and r <= 3 for r in ranks) / n,
-                "MRR@3": sum(1.0 / r for r in ranks if r is not None and r <= 3) / n,
-            }
-        )
-    return rows
-
-
 def main() -> None:
     with open(TESTSET_PATH, encoding="utf-8") as f:
         cases = json.load(f)
 
-    reranker = LocalReranker()
-    print(f"评测集: {len(cases)} 题 | 管线: 混合检索(alpha=0.6, Top10) + 重排(Top{TOP_K})")
-    print("加载 v1 基线库（字符TF-IDF Dense）...")
-    v1_store = LocalVectorStore.load(str(VECTOR_STORE_PATH))
-    print("加载 v2 升级库（bge 语义 Dense）...")
-    v2_store = HybridStoreV2()
+    print(f"评测集: {len(cases)} 题 | 管线: 召回粗筛Top10 → 重排Top{TOP_K} | 命中判据同毕设口径")
+    arms = build_arms()
 
-    v1_metrics, v1_ranks = evaluate(v1_store, reranker, cases)
-    v2_metrics, v2_ranks = evaluate(v2_store, reranker, cases)
+    results = []
+    for name, store, rerank_fn in arms:
+        print(f"评测 {name} ...")
+        metrics, ranks = evaluate(make_pipeline(store, rerank_fn), cases)
+        results.append((name, metrics, ranks))
 
-    print("\nalpha 权重扫描（稳健性检验）...")
-    v1_sweep = sweep_alpha(v1_store, reranker, cases)
-    v2_sweep = sweep_alpha(v2_store, reranker, cases)
-
-    header = f"{'后端':<28} {'Hit@1':>8} {'Hit@3':>8} {'Hit@5':>8} {'MRR@3':>8}"
+    header = f"{'管线':<28} {'Hit@1':>7} {'Hit@3':>7} {'Hit@5':>7} {'MRR@3':>8}"
     print("\n" + header)
     print("-" * len(header))
-    for name, m in (("v1 字符TF-IDF Dense（基线）", v1_metrics), ("v2 bge 语义 Dense", v2_metrics)):
-        print(
-            f"{name:<28} {m['Hit@1']:>7.1%} {m['Hit@3']:>8.1%} {m['Hit@5']:>8.1%} {m['MRR@3']:>8.4f}"
-        )
+    for name, m, _ in results:
+        print(f"{name:<28} {m['Hit@1']:>7.1%} {m['Hit@3']:>7.1%} {m['Hit@5']:>7.1%} {m['MRR@3']:>8.4f}")
 
-    # 逐题对比：v2 改善/恶化/持平 的题一眼可见
+    # 逐题对比
     print("\n逐题排名对比（- 表示未命中）：")
-    print(f"{'id':>3} {'v1':>4} {'v2':>4}  变化")
-    for i, (r1, r2) in enumerate(zip(v1_ranks, v2_ranks), 1):
-        f1 = "-" if r1 is None else r1
-        f2 = "-" if r2 is None else r2
-        arrow = "改善" if (r2 is not None and (r1 is None or r2 < r1)) else (
-            "恶化" if (r1 is not None and (r2 is None or r1 < r2)) else "持平")
-        print(f"{i:>3} {f1!s:>4} {f2!s:>4}  {arrow}")
+    ids = [str(i) for i in range(1, len(cases) + 1)]
+    title = f"{'id':>3} " + " ".join(f"{name.split()[0]:>4}" for name, _, _ in results)
+    print(title)
+    for q in range(len(cases)):
+        row = f"{q + 1:>3} "
+        for _, _, ranks in results:
+            r = ranks[q]
+            row += f"{'-' if r is None else r:>4} "
+        print(row)
 
-    # 导出 Markdown 报告（可直接贴进 README / 简历附件）
-    md = f"""# 阶段 1 对照实验：字符 TF-IDF "Dense" vs 真 bge 语义 Dense
+    # 导出 Markdown 报告
+    md = f"""# 阶段 2 对照实验：高级 RAG 检索（双路召回 + RRF 融合 + 交叉编码器精排）
 
 - 日期：{date.today()} | 评测集：{len(cases)} 题（毕设原版 ncu_qa_testset.json）
-- 管线（两臂完全一致，唯一变量为 Dense 通道）：混合检索(alpha=0.6, 粗筛Top10) + LocalReranker 重排
-- v1 Dense：TfidfVectorizer(char_wb 2-4gram)；v2 Dense：{EMBEDDING_MODEL}（本地，512 维）
+- 三臂唯一差异在检索管线本身，其余（切片、评测集、判据）完全一致
+- Dense 模型：{EMBEDDING_MODEL}；精排模型：BAAI/bge-reranker-base（交叉编码器）
 
-| 后端 | Hit@1 | Hit@3 | Hit@5 | MRR@3 |
-| :--- | :--- | :--- | :--- | :--- |
-| v1 字符TF-IDF Dense（基线） | {v1_metrics['Hit@1']:.1%} | {v1_metrics['Hit@3']:.1%} | {v1_metrics['Hit@5']:.1%} | {v1_metrics['MRR@3']:.4f} |
-| **v2 bge 语义 Dense** | **{v2_metrics['Hit@1']:.1%}** | **{v2_metrics['Hit@3']:.1%}** | **{v2_metrics['Hit@5']:.1%}** | **{v2_metrics['MRR@3']:.4f}** |
-
-## 逐题排名（- 为未命中）
-
-| id | v1 排名 | v2 排名 | 变化 |
-| :--- | :--- | :--- | :--- |
+| 管线 | 召回 | 融合 | 重排 | Hit@1 | Hit@3 | Hit@5 | MRR@3 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 """
-    for i, (r1, r2) in enumerate(zip(v1_ranks, v2_ranks), 1):
-        f1 = "-" if r1 is None else r1
-        f2 = "-" if r2 is None else r2
-        arrow = "改善" if (r2 is not None and (r1 is None or r2 < r1)) else (
-            "恶化" if (r1 is not None and (r2 is None or r1 < r2)) else "持平")
-        md += f"| {i} | {f1} | {f2} | {arrow} |\n"
+    pipeline_desc = {
+        "v1": ("TF-IDF Dense + 词频 Sparse", "alpha=0.6 加权", "LocalReranker 启发式"),
+        "v2": ("bge 语义 Dense + 词频 Sparse", "alpha=0.6 加权", "LocalReranker 启发式"),
+        "v3": ("FAISS Dense + BM25 Sparse", "RRF (k=60)", "bge-reranker-base 交叉编码器"),
+    }
+    for name, m, _ in results:
+        key = name.split()[0]
+        recall, fuse, rerank = pipeline_desc[key]
+        md += (
+            f"| **{name}** | {recall} | {fuse} | {rerank} | {m['Hit@1']:.1%} | "
+            f"{m['Hit@3']:.1%} | {m['Hit@5']:.1%} | {m['MRR@3']:.4f} |\n"
+        )
 
-    md += "\n## alpha 权重扫描（稳健性检验）\n\n| 后端 | alpha | Hit@1 | Hit@3 | MRR@3 |\n| :--- | :--- | :--- | :--- | :--- |\n"
-    for rows, name in ((v1_sweep, "v1"), (v2_sweep, "v2")):
-        for r in rows:
-            md += f"| {name} | {r['alpha']} | {r['Hit@1']:.0%} | {r['Hit@3']:.0%} | {r['MRR@3']:.4f} |\n"
+    md += "\n## 逐题排名（- 为未命中）\n\n| id | " + " | ".join(n.split()[0] for n, _, _ in results) + " |\n"
+    md += "| :--- | " + " | ".join([":---"] * len(results)) + " |\n"
+    for q in range(len(cases)):
+        row = [str(q + 1)] + [
+            "-" if (r := ranks[q]) is None else str(r) for _, _, ranks in results
+        ]
+        md += "| " + " | ".join(row) + " |\n"
 
     md += """
-## 已知数据问题（失败分析）
+## 说明
 
-- 题 4（学位授予 GPA 最低要求）两后端表现均异常：评测集标注目标为《学士学位授予
-  实施细则》第四条（GPA≥2.0），但切片数据中该"第四条"的实际内容是政治条件条款，
-  标注与切片内容错位。v1 在字符串判据下的"命中"命中的是内容不匹配的条文（假阳性）；
-  v2 的排序更符合语义但按判据不计命中。
-- 评测集仅 10 题，单题翻动即 ±10 个百分点；扩充评测集是提升结论可信度的下一步。
+- 判据在毕设口径基础上修复了一处缺陷：多条文目标（"第五条、第六条"）按、拆分后
+  任一命中即计（原判据下此类题不可能命中）；三臂使用同一判据，对比仍然公平；
+- v3 用 RRF 替代 alpha 加权：分数只来自两路排名（量纲无关），消除了需要扫描调优的超参；
+- 交叉编码器精排只作用于融合后的 Top-10（CPU 上逐对打分，全量精排不现实）；
+- FAISS IndexFlatIP 在 98 条切片下与暴力点积等价（精确检索），价值在于语料
+  扩展到万级以上时换 IVF/HNSW 索引、上层代码零改动；
+- 已知数据问题：题 4 的评测标注与切片内容存在错位（详见阶段 1 报告）；
+  评测集仅 10 题，单题翻动即 ±10 个百分点，扩充评测集是下一步。
 """
 
     with open(REPORT_PATH, "w", encoding="utf-8") as f:

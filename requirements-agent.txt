@@ -6,6 +6,11 @@ python-dotenv>=1.0
 # v2 真 embedding 检索后端（本地 bge 模型，首次运行自动下载）
 sentence-transformers>=3.0
 
+# v3 高级检索后端（双路召回 + RRF + 交叉编码器精排）
+faiss-cpu>=1.8
+rank-bm25>=0.2.2
+jieba>=0.42
+
 # 填写工具实现时需要（复用毕设 scripts/ 里的检索与规则代码）
 numpy
 scikit-learn

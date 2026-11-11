@@ -51,6 +51,8 @@ python -m agent.main          # 交互模式
 | `tools/__init__.py` | 工具注册表 TOOLS（新增工具在此登记） |
 | `embeddings.py` | 真 embedding 后端：本地 bge-small-zh-v1.5（阶段 1） |
 | `retrieval_v2.py` | v2 混合检索：真 Dense + 复用 v1 Sparse，接口与 v1 一致 |
+| `retrieval_v3.py` | v3 检索：FAISS Dense + BM25 双路召回 → RRF 融合（阶段 2） |
+| `reranker_ce.py` | bge-reranker-base 交叉编码器精排（与 LocalReranker 同接口可替换） |
 | `build_vector_store_v2.py` | 构建 v2 向量库（98×512 维，`python -m agent.build_vector_store_v2`） |
 | `eval_retrieval.py` | 一键评测：v1 vs v2 同口径对比 + alpha 扫描 + 失败分析 |
 | `graph.py` | StateGraph 组装：agent ⇄ tools 的 ReAct 循环（可注入假模型做离线测试） |
@@ -96,10 +98,36 @@ Dense 通道，对比口径与毕设论文一致（`python -m agent.eval_retriev
 
 | 变量 | 默认 | 说明 |
 | :--- | :--- | :--- |
-| `RETRIEVAL_BACKEND` | `auto` | `auto`/`v2`/`v1`：检索后端切换（auto=有 v2 库就用 v2） |
-| `EMBEDDING_MODEL` | `BAAI/bge-small-zh-v1.5` | 本地 embedding 模型，可换 bge-base/large 提精度 |
+| `RETRIEVAL_BACKEND` | `auto` | `auto`/`v3`/`v2`/`v1`：检索管线切换（auto=v3→v2→v1 逐级降级） |
+| `EMBEDDING_MODEL` | `BAAI/bge-small-zh-v1.5` | 双塔语义模型（召回用） |
+| `RERANKER_MODEL` | `BAAI/bge-reranker-base` | 交叉编码器模型（精排用，可换 small 版省内存） |
 
-### 下一步（阶段 2+）
+## 阶段 2 成果：高级 RAG 检索（已完成）
+
+v3 管线：**FAISS（bge 语义向量）+ BM25（jieba 分词）双路召回 → RRF(k=60) 融合
+Top-10 → bge-reranker-base 交叉编码器精排 → Top-3**。相对 v1/v2 的两个本质改进：
+
+1. **RRF 替代 alpha 加权融合**：余弦与 TF-IDF 分数量纲不可比，alpha 是需要扫描
+   调优的超参；RRF 只看两路排名，量纲无关、免调参；
+2. **交叉编码器替代启发式重排**：LocalReranker 靠关键词加权规则，交叉编码器让
+   query 与文档联合建模，语义判断能力不同量级。
+
+三臂同口径对比（`python -m agent.eval_retrieval` 重跑可复现；判据在毕设口径上
+修复了多条文目标无法匹配的缺陷，三臂同判据）：
+
+| 管线 | 召回 | 融合 | 重排 | Hit@1 | Hit@3 | MRR@3 |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| v1 | TF-IDF + 词频 | alpha 加权 | 启发式 | 70.0% | 80.0% | 0.7500 |
+| v2 | bge + 词频 | alpha 加权 | 启发式 | 80.0% | 90.0% | 0.8333 |
+| **v3** | **FAISS + BM25** | **RRF** | **交叉编码器** | **80.0%** | **100.0%** | **0.9000** |
+
+- v3 全部 10 题命中进 Top-2（仅 q10 第 2、q4 第 2）；阶段 1 中数据错位的 q4
+  被交叉编码器救回到第 2 名；
+- 诚实的工程判断：98 条切片下 FAISS IndexFlatIP 与暴力点积等价（同为精确检索），
+  此处用 FAISS 是对齐工业栈、为语料上万后换 IVF/HNSW 留好接口；
+- 完整报告：`data/eval_dataset/stage2_hybrid_rrf_comparison.md`。
+
+### 下一步（阶段 3+）
 
 1. 扩充评测集（30~50 题，覆盖更多口语化问法与多文档问题）；
 2. 把 `server/` 的 Java 桥接层与 `web/` 前端接回 agent（SSE 流式输出工具调用轨迹）；
