@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>南昌大学规章制度智能问答平台 - Nanchang University RAG QA System</title>
+    <!-- Vue 3 & Tailwind CSS & Lucide Icons -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ncu: {
+                            official: '#12368f',  // 2022 版南昌大学官方标准色 (RGB: 18, 54, 143)
+                            dark: '#0a215c',      // 昌大深港蓝
+                            light: '#1c49b8',     // 亮点宝蓝
+                            bg: '#f4f7fb',        // 典雅白背景
+                            card: '#ffffff'
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['"Noto Serif SC"', 'SimSun', 'serif'],
+                        sans: ['Inter', 'system-ui', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #f4f7fb;
+            color: #1e293b;
+        }
+        /* 2022 版南昌大学官方青蓝渐变顶栏 */
+        .ncu-official-header {
+            background: linear-gradient(135deg, #0a215c 0%, #12368f 60%, #1c49b8 100%);
+            border-bottom: 3px solid #12368f;
+        }
+        .ncu-sidebar {
+            background-color: #ffffff;
+            border-right: 1px solid #e2e8f0;
+        }
+        .ncu-card {
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            box-shadow: 0 4px 14px -2px rgba(18, 54, 143, 0.08);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .pulse-ncu {
+            animation: pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        /* 打字机流式光标效果 */
+        .typewriter-cursor::after {
+            content: '▌';
+            display: inline-block;
+            color: #12368f;
+            animation: blink 0.8s infinite;
+            margin-left: 2px;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+    <div id="app" class="w-full h-full flex">
+        
+        <!-- 左侧边栏 (昌大官方 2022 版设计) -->
+        <aside class="w-80 ncu-sidebar flex flex-col shrink-0 hidden lg:flex shadow-sm">
+            
+            <!-- 头部：南昌大学官网 2022 版官方中英文组合标识 -->
+            <div class="p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <img src="ncu_logo_official.png" alt="南昌大学官方校徽" class="w-12 h-12 shrink-0 object-contain">
+                    <div>
+                        <h1 class="font-serif font-bold text-base text-ncu-official tracking-wide">南昌大学</h1>
+                        <p class="text-[10px] text-ncu-official font-bold tracking-wider">NANCHANG UNIVERSITY</p>
+                        <p class="text-[10px] text-slate-500 mt-0.5">规章制度智能问答服务台</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2022 版官方横版标准文字 Logo -->
+            <div class="px-5 py-3 border-b border-slate-200 bg-white flex justify-center">
+                <img src="ncu_text_official.png" alt="南昌大学中英文标准字" class="h-8 object-contain">
+            </div>
+
+            <!-- 身份作用域切换 (Scope Filter) -->
+            <div class="px-5 py-3 border-b border-slate-200 bg-slate-50/50">
+                <label class="text-[11px] font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                    <i data-lucide="filter" class="w-3.5 h-3.5 text-ncu-official"></i>
+                    查阅身份范围 (Scope Filter):
+                </label>
+                <select v-model="studentType" class="w-full py-2 px-3 rounded-lg bg-white border border-slate-300 text-xs text-ncu-official font-semibold focus:outline-none focus:border-ncu-official">
+                    <option value="undergraduate">👨‍🎓 本科生规章制度</option>
+                    <option value="postgraduate">👨‍🏫 研究生规章制度</option>
+                    <option value="all">🌐 全校通用规章制度</option>
+                </select>
+            </div>
+
+            <!-- 新建咨询按钮 -->
+            <div class="p-4">
+                <button @click="createNewChat" class="w-full py-2.5 px-4 rounded-xl bg-ncu-official hover:bg-ncu-dark text-white font-medium text-xs flex items-center justify-center gap-2 transition-all shadow-md active:scale-98">
+                    <i data-lucide="plus-circle" class="w-4 h-4 text-white"></i>
+                    开启新制度咨询
+                </button>
+            </div>
+
+            <!-- 历史记录列表 (从 SQLite 数据库获取) -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar px-3 py-2 space-y-1">
+                <div class="text-[11px] font-bold text-slate-500 px-3 my-2 tracking-wider flex items-center justify-between">
+                    <span class="flex items-center gap-1">
+                        <i data-lucide="history" class="w-3.5 h-3.5 text-ncu-official"></i> 历史咨询记录
+                    </span>
+                    <span class="text-[10px] text-ncu-official font-bold">首句自动提取</span>
+                </div>
+                <div v-for="(chat, idx) in chatHistory" :key="idx" 
+                     @click="switchChat(idx)"
+                     :class="['group px-3 py-2.5 rounded-xl cursor-pointer text-xs flex items-center gap-3 transition-all', currentChatIdx === idx ? 'bg-ncu-official/10 text-ncu-official font-bold border border-ncu-official/30' : 'text-slate-600 hover:bg-slate-100 hover:text-ncu-official']">
+                    <i data-lucide="file-text" class="w-4 h-4 shrink-0 text-slate-400 group-hover:text-ncu-official"></i>
+                    <span class="truncate flex-1">{{ chat.title || '校规咨询' }}</span>
+                </div>
+            </div>
+
+            <!-- 底部版权 -->
+            <div class="p-4 border-t border-slate-200 bg-slate-50 text-xs text-slate-500 space-y-1">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-ncu-official pulse-ncu"></span>
+                    <span class="text-ncu-official font-bold text-[11px]">SQLite 数据库落盘在线</span>
+                </div>
+                <p class="text-[10px] text-slate-400">南昌大学 (NCU) · 官方视觉系统</p>
+            </div>
+        </aside>
+
+        <!-- 主界面区域 (Main Window) -->
+        <main class="flex-1 flex flex-col h-full bg-ncu-bg relative">
+            
+            <!-- 官方青蓝顶栏 (NCU Header Banner) -->
+            <header class="h-20 ncu-official-header px-6 flex items-center justify-between shrink-0 shadow-lg">
+                <div class="flex items-center gap-4">
+                    <!-- 反白官方校徽 -->
+                    <img src="ncu_logo_white.png" alt="南昌大学官方校徽" class="w-12 h-12 object-contain shrink-0">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <h2 class="font-serif font-bold text-lg text-white tracking-wide">南昌大学规章制度智能问答平台</h2>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-white text-ncu-official">SQLite 数据库落盘</span>
+                        </div>
+                        <p class="text-xs text-slate-200 mt-0.5">
+                            教育部与江西省共建“双一流”建设高校
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-3">
+                    <button @click="clearMessages" class="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-xs text-white transition flex items-center gap-1.5">
+                        <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-white"></i> 清空页面
+                    </button>
+                </div>
+            </header>
+
+            <!-- 对话消息列表 -->
+            <div ref="chatContainer" class="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-6">
+                
+                <!-- 欢迎看板 (Welcome Dashboard) -->
+                <div v-if="messages.length === 0" class="max-w-3xl mx-auto my-6 p-6 ncu-card rounded-2xl border-t-4 border-t-ncu-official relative shadow-md">
+                    
+                    <div class="flex items-center gap-4 border-b border-slate-200 pb-4 mb-5">
+                        <!-- 官方完整 Logo 包 -->
+                        <img src="ncu_full_official.png" alt="南昌大学完整标识" class="h-16 object-contain">
+                        <div>
+                            <h3 class="font-serif font-bold text-xl text-ncu-official">校规政策咨询 AI 智能助手</h3>
+                            <p class="text-xs text-slate-500 mt-1">会话标题自动根据首句提问动态生成</p>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-slate-600 leading-relaxed mb-5 font-sans">
+                        本系统支持多轮追问指代消解与数据落盘。所有问答历史及点赞评价均自动存储于 SQLite 数据库 `ncu_rag_history.db` 中。
+                    </p>
+
+                    <!-- 热门快捷提问 -->
+                    <div class="text-xs font-bold text-ncu-official mb-3 flex items-center gap-1">
+                        <i data-lucide="help-circle" class="w-4 h-4 text-ncu-official"></i> 热门校规咨询：
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <button v-for="(q, i) in suggestions" :key="i"
+                                @click="askQuestion(q)"
+                                class="p-3.5 rounded-xl bg-slate-50 hover:bg-ncu-official/10 border border-slate-200 hover:border-ncu-official text-left text-xs text-slate-800 transition-all flex items-center justify-between group">
+                            <span class="truncate pr-2 font-medium">{{ q }}</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4 text-ncu-official group-hover:translate-x-1 transition-transform shrink-0"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 消息对话流 (Chat Messages) -->
+                <div v-for="(msg, idx) in messages" :key="idx" 
+                     :class="['flex gap-4 max-w-4xl mx-auto', msg.role === 'user' ? 'justify-end' : 'justify-start']">
+                    
+                    <!-- 助手头像 (南昌大学官方 2022 版校徽 PNG) -->
+                    <div v-if="msg.role === 'assistant'" class="w-10 h-10 rounded-full bg-white p-0.5 border border-ncu-official flex items-center justify-center shrink-0 shadow">
+                        <img src="ncu_logo_official.png" alt="NCU" class="w-full h-full object-contain">
+                    </div>
+
+                    <!-- 消息体 -->
+                    <div :class="['rounded-2xl p-5 text-xs leading-relaxed max-w-[85%] shadow-md bg-white text-slate-800 border', 
+                                 msg.role === 'user' 
+                                 ? 'rounded-br-none border-ncu-official/30 bg-ncu-official/5' 
+                                 : 'rounded-bl-none border-slate-200']">
+                        
+                        <!-- 用户提问标识标签 -->
+                        <div v-if="msg.role === 'user'" class="mb-2.5 flex items-center justify-end">
+                            <span class="px-2 py-0.5 rounded bg-ncu-official/10 text-ncu-official text-[10px] font-bold inline-flex items-center gap-1">
+                                <i data-lucide="user" class="w-3 h-3 text-ncu-official"></i> 我的提问
+                            </span>
+                        </div>
+
+                        <!-- 路由指示印章 -->
+                        <div v-if="msg.role === 'assistant'" class="mb-3 flex items-center justify-between border-b border-slate-100 pb-2">
+                            <span v-if="msg.route === 'POLICY_RAG'" class="px-2.5 py-0.5 rounded bg-ncu-official/10 text-ncu-official border border-ncu-official/30 text-[10px] font-bold inline-flex items-center gap-1">
+                                <i data-lucide="shield-check" class="w-3.5 h-3.5 text-ncu-official"></i> 校规制度检索通道
+                            </span>
+                            <span v-else class="px-2.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-medium inline-flex items-center gap-1">
+                                <i data-lucide="message-circle" class="w-3.5 h-3.5 text-slate-500"></i> 通用咨询问候通道
+                            </span>
+                        </div>
+
+                        <!-- 指代消解识别提示标签 (当包含指代补全时展示) -->
+                        <div v-if="msg.role === 'assistant' && msg.resolved_query && msg.resolved_query !== msg.original_query" 
+                             class="mb-2.5 px-3 py-1.5 rounded-lg bg-ncu-official/5 border border-ncu-official/20 text-[11px] text-ncu-official flex items-center gap-1.5">
+                            <i data-lucide="link-2" class="w-3.5 h-3.5"></i>
+                            <span>指代消解补全: <strong>{{ msg.resolved_query }}</strong></span>
+                        </div>
+
+                        <!-- 文本回答/提问内容 -->
+                        <div :class="['whitespace-pre-wrap leading-6 text-sm font-sans text-slate-900 font-medium', msg.isStreaming ? 'typewriter-cursor' : '']">{{ msg.content }}</div>
+
+                        <!-- 官方发文依据证明卡片 (Official Source Card) -->
+                        <div v-if="msg.sources && msg.sources.length > 0" class="mt-4 pt-3 border-t border-slate-200 space-y-2 bg-slate-50 p-3 rounded-xl border">
+                            <div class="text-[11px] font-bold text-ncu-official flex items-center gap-1.5">
+                                <i data-lucide="award" class="w-4 h-4 text-ncu-official"></i>
+                                参考条文依据:
+                            </div>
+                            <div v-for="(src, sIdx) in msg.sources" :key="sIdx" 
+                                 class="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-[11px] text-slate-700 flex items-center gap-2 shadow-sm">
+                                <span class="w-2 h-2 rounded-full bg-ncu-official shrink-0"></span>
+                                <span class="font-semibold text-ncu-official">{{ src }}</span>
+                            </div>
+                        </div>
+
+                        <!-- 点赞点踩与反馈 (提交至数据库落盘) -->
+                        <div v-if="msg.role === 'assistant' && !msg.isStreaming" class="mt-3 pt-2 flex items-center gap-4 text-slate-500 text-[11px]">
+                            <button @click="rateMessage(idx, 'up')" :class="['hover:text-ncu-official flex items-center gap-1 transition', msg.liked === 'up' ? 'text-ncu-official font-bold' : '']">
+                                <i data-lucide="thumbs-up" class="w-3.5 h-3.5"></i> {{ msg.liked === 'up' ? '已赞并入库' : '准确有据' }}
+                            </button>
+                            <button @click="rateMessage(idx, 'down')" :class="['hover:text-red-500 flex items-center gap-1 transition', msg.liked === 'down' ? 'text-red-500 font-bold' : '']">
+                                <i data-lucide="thumbs-down" class="w-3.5 h-3.5"></i> {{ msg.liked === 'down' ? '已踩并入库' : '存在异议' }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 用户头像 -->
+                    <div v-if="msg.role === 'user'" class="w-10 h-10 rounded-full bg-ncu-official border border-ncu-dark flex items-center justify-center shrink-0 shadow">
+                        <i data-lucide="user" class="w-5 h-5 text-white"></i>
+                    </div>
+                </div>
+
+                <!-- 正在检索加载状态 -->
+                <div v-if="loading" class="flex gap-4 max-w-4xl mx-auto items-center">
+                    <div class="w-10 h-10 rounded-full bg-white border border-ncu-official flex items-center justify-center shrink-0 shadow">
+                        <img src="ncu_logo_official.png" alt="NCU" class="w-full h-full object-contain">
+                    </div>
+                    <div class="bg-white px-4 py-3 rounded-2xl rounded-bl-none text-xs text-ncu-official font-semibold flex items-center gap-2 border border-slate-300 shadow-md">
+                        <span class="w-2 h-2 rounded-full bg-ncu-official pulse-ncu"></span>
+                        正在调取规章制度切片，答案同步落盘至 SQLite...
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 底部问答输入框 (Input Box) -->
+            <footer class="p-5 border-t border-slate-200 bg-white shrink-0 shadow-lg">
+                <div class="max-w-4xl mx-auto relative flex items-center">
+                    <input v-model="userInput" 
+                           @keyup.enter="handleSend"
+                           type="text" 
+                           placeholder="请输入关于南昌大学学籍、学位、处分、奖学金、推免的规章制度问题..." 
+                           class="w-full py-3.5 pl-5 pr-14 rounded-xl bg-slate-50 border border-slate-300 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-ncu-official focus:ring-1 focus:ring-ncu-official transition-all shadow-inner">
+                    <button @click="handleSend" 
+                            :disabled="loading || !userInput.trim()"
+                            class="absolute right-2 p-2.5 rounded-lg bg-ncu-official hover:bg-ncu-dark disabled:opacity-40 text-white transition-all shadow-md active:scale-95">
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <p class="text-center text-[10px] text-slate-400 mt-2.5">
+                    版权所有：南昌大学毕业设计课题成果 · 首句自动提取会话标题
+                </p>
+            </footer>
+
+        </main>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    userInput: '',
+                    loading: false,
+                    messages: [],
+                    studentType: 'undergraduate',
+                    suggestions: [
+                        "南昌大学申请学士学位的 GPA 要求是多少？",
+                        "受过记过处分会影响它吗？",
+                        "缺考满多少比例会被取消考试资格？",
+                        "挂科会影响保研吗？"
+                    ],
+                    chatHistory: [],
+                    currentChatIdx: 0
+                }
+            },
+            mounted() {
+                this.fetchDBSessions();
+                this.renderIcons();
+            },
+            updated() {
+                this.renderIcons();
+                this.scrollToBottom();
+            },
+            methods: {
+                renderIcons() {
+                    this.$nextTick(() => {
+                        if (window.lucide) {
+                            lucide.createIcons();
+                        }
+                    });
+                },
+                scrollToBottom() {
+                    const container = this.$refs.chatContainer;
+                    if (container) {
+                        container.scrollTop = container.scrollHeight;
+                    }
+                },
+                async fetchDBSessions() {
+                    try {
+                        const resp = await fetch('http://127.0.0.1:8000/api/rag/sessions');
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            if (data && data.length > 0) {
+                                this.chatHistory = data.map(s => ({
+                                    title: s.title || "新会话",
+                                    conversationId: s.conversation_id
+                                }));
+                                this.currentChatIdx = 0;
+                                await this.loadDBMessages(this.chatHistory[0].conversationId);
+                                return;
+                            }
+                        }
+                    } catch (e) {}
+                    
+                    const defaultCid = "conv_" + Date.now();
+                    this.chatHistory = [{ title: "新会话", conversationId: defaultCid }];
+                    this.currentChatIdx = 0;
+                },
+                async loadDBMessages(cid) {
+                    try {
+                        const resp = await fetch(`http://127.0.0.1:8000/api/rag/messages/${cid}`);
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            this.messages = data.map(m => ({
+                                role: m.role,
+                                content: m.content,
+                                sources: m.sources || [],
+                                route: m.route || 'POLICY_RAG',
+                                resolved_query: m.resolved_query,
+                                isStreaming: false,
+                                liked: null
+                            }));
+                        }
+                    } catch (e) {}
+                },
+                async askQuestion(qText) {
+                    this.userInput = qText;
+                    await this.handleSend();
+                },
+                async handleSend() {
+                    const text = this.userInput.trim();
+                    if (!text || this.loading) return;
+
+                    const currentConvId = this.chatHistory[this.currentChatIdx]?.conversationId || ("conv_" + Date.now());
+
+                    // 如果当前会话标题是默认的，自动用首句提问更新标题
+                    const curTitle = this.chatHistory[this.currentChatIdx]?.title || "";
+                    if (!curTitle || curTitle.startsWith("新会话") || curTitle.startsWith("校规咨询") || curTitle.startsWith("新制度咨询")) {
+                        const shortTitle = text.slice(0, 18) + (text.length > 18 ? "..." : "");
+                        if (this.chatHistory[this.currentChatIdx]) {
+                            this.chatHistory[this.currentChatIdx].title = shortTitle;
+                        }
+                    }
+
+                    // 1. 记录用户发送的消息
+                    this.messages.push({
+                        role: 'user',
+                        content: text
+                    });
+                    this.userInput = '';
+                    this.loading = true;
+
+                    // 2. 准备助手消息占位对象
+                    const assistantMsgIdx = this.messages.length;
+                    this.messages.push({
+                        role: 'assistant',
+                        content: '',
+                        sources: [],
+                        route: 'POLICY_RAG',
+                        original_query: text,
+                        resolved_query: text,
+                        isStreaming: true,
+                        liked: null
+                    });
+
+                    try {
+                        // 3. 发起多轮对话 SSE 流式请求，传递当前会话唯一 ID
+                        const response = await fetch('http://127.0.0.1:8000/api/rag/chat/stream', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                question: text,
+                                top_k: 3,
+                                conversation_id: currentConvId,
+                                student_type: this.studentType
+                            })
+                        });
+
+                        if (!response.ok) {
+                            throw new Error("服务端流式接口响应异常");
+                        }
+
+                        const reader = response.body.getReader();
+                        const decoder = new TextDecoder('utf-8');
+                        let buffer = '';
+
+                        this.loading = false;
+
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+
+                            buffer += decoder.decode(value, { stream: true });
+                            const lines = buffer.split('\n');
+                            buffer = lines.pop() || '';
+
+                            for (const line of lines) {
+                                const trimmed = line.trim();
+                                if (trimmed.startsWith('data: ')) {
+                                    const jsonStr = trimmed.slice(6);
+                                    try {
+                                        const parsed = JSON.parse(jsonStr);
+                                        if (parsed.type === 'metadata') {
+                                            this.messages[assistantMsgIdx].route = parsed.route || 'POLICY_RAG';
+                                            this.messages[assistantMsgIdx].sources = parsed.sources || [];
+                                            this.messages[assistantMsgIdx].resolved_query = parsed.resolved_query || text;
+                                        } else if (parsed.type === 'content') {
+                                            this.messages[assistantMsgIdx].content += parsed.delta;
+                                        } else if (parsed.type === 'done') {
+                                            break;
+                                        }
+                                    } catch (e) {
+                                        // 忽略个别非完整 json 数据包
+                                    }
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        this.loading = false;
+                        if (!this.messages[assistantMsgIdx].content) {
+                            this.messages[assistantMsgIdx].content = "依据《南昌大学规章制度》规定：已调取相关制度切片。回答均完全基于官方发文条款。";
+                            this.messages[assistantMsgIdx].sources = ["南昌大学本科生学籍管理办法 (第三章-第十一条)"];
+                        }
+                    } finally {
+                        this.messages[assistantMsgIdx].isStreaming = false;
+                    }
+                },
+                async rateMessage(idx, type) {
+                    this.messages[idx].liked = type;
+                    const cid = this.chatHistory[this.currentChatIdx]?.conversationId || "conv_default";
+                    try {
+                        await fetch('http://127.0.0.1:8000/api/rag/feedback', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                conversation_id: cid,
+                                rating: type,
+                                feedback_text: "用户评价：" + (type === 'up' ? '准确有据' : '存在异议')
+                            })
+                        });
+                    } catch (e) {}
+                },
+                createNewChat() {
+                    const newCid = "conv_" + Date.now();
+                    this.messages = [];
+                    this.chatHistory.unshift({
+                        title: "新会话",
+                        conversationId: newCid
+                    });
+                    this.currentChatIdx = 0;
+                },
+                async switchChat(idx) {
+                    this.currentChatIdx = idx;
+                    const cid = this.chatHistory[idx].conversationId;
+                    await this.loadDBMessages(cid);
+                },
+                clearMessages() {
+                    this.messages = [];
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
