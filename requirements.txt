@@ -1,0 +1,16 @@
+# 运行环境（Python 3.10+）：pip install -r requirements.txt
+langgraph>=1.0
+langchain-openai>=1.0
+python-dotenv>=1.0
+fastapi>=0.110
+uvicorn>=0.29
+
+# v2/v3 检索后端（本地 bge 模型首次运行自动下载：small ~95MB / reranker ~1.1GB）
+sentence-transformers>=3.0
+faiss-cpu>=1.8
+rank-bm25>=0.2.2
+jieba>=0.42
+
+# 毕设组件复用（v1 基线、sparse 通道、规则引擎）
+numpy
+scikit-learn

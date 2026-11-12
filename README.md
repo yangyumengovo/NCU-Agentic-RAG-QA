@@ -1,135 +1,153 @@
-# 基于 RAG 的高校制度文档智能问答系统
-### Nanchang University Campus Regulation RAG Q&A System
+# NCU 校规智能问答 · Agentic RAG
 
-![Python Version](https://img.shields.io/badge/Python-3.10-blue.svg)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)
-![Vue.js](https://img.shields.io/badge/Vue.js-3.0-brightgreen.svg)
-![LLM](https://img.shields.io/badge/LLM-GLM--4--Flash%20%7C%20DeepSeek-purple.svg)
-![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+> 南昌大学规章制度智能问答系统：由固定流水线 RAG 重构为 **LangGraph Agent** 驱动的
+> Agentic RAG——LLM 自主决策调用校规检索、硬规则校验、条文溯源等工具，检索层历经
+> v1→v2→v3 三代演进（FAISS+BM25 双路召回 + RRF 融合 + 交叉编码器精排），全部实验
+> 结果可由脚本一键复现。
 
-本项目为**本科毕业设计课题成果**，是一套专为高校（以南昌大学为例）设计的基于**检索增强生成（Retrieval-Augmented Generation, RAG）**的规章制度智能问答系统。针对传统校规查询检索慢、口语化匹配差、缺乏多轮对话记忆等痛点，实现了从结构化公文解析、双路混合检索、 Cross-Rerank 重排序、多轮指代消解到 SSE 实时流式打字推送的全栈解决方案。
-
----
-
-## 🌟 核心特性 (Key Features)
-
-1. 📖 **12 大领域公文与结构感知切片 (Structure-Aware Chunking)**
-   - 覆盖学籍、学位、奖学金、处分、保研、转专业、课程考核、宿舍管理、学术不端、考勤请假、国家奖学金及申诉处理等 12 大权威发文。
-   - 正则提取“章-节-条”与 Scope 身份标记（`student_type`, `category`），生成 98 个高密度结构化切片，彻底避免传统切片语义断裂。
-
-2. ⚡ **双路混合检索与 Cross-Rerank 重排序 (Hybrid Retrieval & Reranker)**
-   - **BM25 稀疏特征**（擅长专有名词） + **TF-IDF Dense 密集特征**（擅长同义表达）加权融合（$\alpha = 0.6$）。
-   - 引入交叉重排序器（Local Cross-Encoder）实施二次粗精排，显著提升召回率（Hit Rate@3）与相关度（MRR@3）。
-
-3. 🧠 **多轮指代消解与双路意图路由 (Coreference & Router)**
-   - 维护 `ConversationMemoryManager` 会话历史栈，自动补全追问中的模糊代词（如“它”、“这个”）。
-   - 意图路由器自动分流政策检索通道与通用问候通道。
-
-4. 📊 **结构化硬规则诊断引擎 (Rule-Guided Validator)**
-   - 内置校规硬规则逻辑算符。当提问包含 `GPA` 绩点、`处分`、`查重率`、`违禁功率` 等参数时，自动在回答头部优先高亮生成**结构化诊断报告卡片**。
-
-5. 🛡️ **防幻觉与据答安全机制 (Hallucination Prevention Guard)**
-   - 结合异构词汇拦截与底层相关度阈值判定。当遇到超纲或与校规无关的提问时，主动拒答并给出权威安全提示。
-
-6. 🎨 **官方品牌 VI 视觉与 SSE 流式打字推送 (Official VI & SSE Streaming)**
-   - 前端采用 Vue3 结合 2022 版南昌大学官方品牌 VI 标准色（昌大青蓝 `#12368F`）。
-   - FastAPI 后端配合 Server-Sent Events (SSE) 实现实时打字机光标效果。
-   - SQLite 数据库自动实现首句提问提取会话标题、历史记录及用户点赞/点踩反馈落盘。
-
----
-
-## 📁 目录结构 (Repository Architecture)
+## 架构
 
 ```
-code/
-├── data/                             # 统一数据与数据库存储
-│   ├── raw_documents/                # 12 份南昌大学官方规章制度 Markdown 原文
-│   ├── processed_chunks/             # 98 个带 Scope Metadata 结构化切片 JSON
-│   ├── vector_store/                 # Dense + BM25 混合向量数据库序列化文件
-│   ├── eval_dataset/                 # Ground Truth 评测集与对比实验报告
-│   └── ncu_rag_history.db            # SQLite 会话与反馈落盘数据库
-├── scripts/                          # 核心算法与离线数据处理模块
-│   ├── structure_chunker.py          # 结构感知切片解析器
-│   ├── vector_store_builder.py       # 混合索引构建器
-│   ├── query_rewriter.py             # Query 改写与扩充模块
-│   ├── reranker.py                   # Local Cross-Encoder 重排序器
-│   ├── conversation_memory.py        # 多轮对话记忆与指代消解
-│   ├── rule_engine.py                # 结构化硬规则诊断引擎
-│   └── rag_generator.py              # 核心 RAG 生成与流式推流引擎
-├── server/                           # API 接口服务端
-│   └── app_rag_service.py            # FastAPI 异步高并发 HTTP/SSE 接口
-└── web/                              # 前端 UI
-    ├── index.html                    # 昌大官方 VI 视觉 Vue3 问答界面
-    └── *.png                         # 2022 版南昌大学官方 Logo 素材
+毕设原版（固定流水线）                          当前版本（Agentic RAG）
+─────────────────────────                      ─────────────────────────────
+用户问题 → [正则意图路由]                       用户问题 → LLM 决策 ──有工具调用──▶ 执行工具 ──┐
+        → [规则改写]                                        ▲                        │
+        → [检索]                                            └──── 继续决策 ◀────────┘
+        → [重排]                                            │
+        → [生成]                                            └── 信息足够 ──▶ 最终回答
+  （顺序与分支全部写死在 Python 里）              （调什么工具、调几次、何时停止由模型决定）
+
+web/index.html (Vue3) ──SSE(工具轨迹+流式)──▶ agent/api_service.py (:8000)
+                                                 └─ LangGraph ReAct 循环（graph.py）
+                                                       ├─ search_regulations  校规语义检索
+                                                       ├─ read_full_article   条文溯源
+                                                       ├─ check_rule          硬规则校验
+                                                       └─ compare_policies    跨文档政策对比
+                                                       └─ 检索层 v1/v2/v3 可切换（_retrieval.py）
 ```
 
----
-
-## 🚀 快速开始 (Quick Start)
-
-### 1. 环境准备 (Environment Setup)
-
-建议使用 Conda 创建独立的 Python 3.10 虚拟环境：
+## 快速开始
 
 ```bash
-# 1. 创建并激活 Python 3.10 环境
-conda create -n ncu_rag python=3.10 -y
-conda activate ncu_rag
+# 1. 环境（Python 3.10+）
+python -m venv .venv
+.venv\Scripts\activate                    # Windows；Linux/Mac: source .venv/bin/activate
+pip install -r requirements.txt           # 走清华镜像可加 -i https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 2. 安装依赖包
-pip install fastapi uvicorn openai sklearn numpy requests pydantic
+# 2. 密钥：复制 .env.example 为 .env，填入智谱开放平台 API Key
+#    （glm-4-flash 免费；套餐 key 见 .env 内注释切换 coding 端点 + glm-5.3）
+
+# 3. 运行（首次自动从 hf-mirror 下载本地模型：bge-small-zh-v1.5 ~95MB + bge-reranker-base ~1.1GB）
+python -m agent.main                      # CLI 问答（打印完整工具调用轨迹）
+python -m agent.main --ask "我绩点3.1有记过处分，能转专业吗"
+
+# 4. Web Demo（两个终端）
+python -m agent.api_service               # AI 服务 :8000
+cd web && python -m http.server 8080      # 前端静态服务
+# 浏览器打开 http://127.0.0.1:8080/index.html
 ```
 
-### 2. 离线构建向量库 (Build Vector Store)
+## 目录结构
 
-运行切片工程与混合向量库构建脚本：
+```
+agent/                     核心包：LangGraph Agent + 检索演进 + 评测 + API 服务
+├── graph.py               ReAct 循环组装（agent ⇄ tools，可注入假模型做离线测试）
+├── prompts.py             系统提示词（自主决策/检索重试/引用出处/拒答边界）
+├── main.py                CLI 入口（工具调用轨迹打印）
+├── api_service.py         FastAPI 服务：SSE 流式 + 工具轨迹事件，会话 SQLite 落盘
+├── tools/                 四个工具 + 共享检索后端 _retrieval.py（v1/v2/v3 管线切换）
+├── embeddings.py          本地 bge-small-zh-v1.5 语义编码（懒加载）
+├── retrieval_v2.py        v2 检索：真 Dense + 复用 v1 Sparse，alpha 加权
+├── retrieval_v3.py        v3 检索：FAISS Dense + BM25 双路召回 → RRF(k=60) 融合
+├── reranker_ce.py         bge-reranker-base 交叉编码器精排
+├── build_vector_store_v2.py   构建 v2 语义向量库（98×512）
+├── eval_retrieval.py      检索多臂评测（--testset 可选数据集，题型分层报表）
+└── eval_refusal.py        拒答评测（跑完整 agent，规则+LLM 裁判双判）
+scripts/                   毕设组件（v1 基线 + 被 v2/v3 复用的部分）
+├── structure_chunker.py   原始公文 → 章-节-条结构化切片（含 Scope 元数据）
+├── vector_store_builder.py    v1 向量库（字符 TF-IDF Dense + 词频 Sparse）
+├── reranker.py            LocalReranker 启发式重排（v1/v2 臂使用）
+├── rule_engine.py         硬规则校验引擎（check_rule 工具封装）
+└── db_manager.py          SQLite 会话/反馈落盘
+data/
+├── raw_documents/         12 份校规公文（Markdown）
+├── processed_chunks/      98 个结构化切片
+├── vector_store/          v1 pickle + v2 npz 向量库
+└── eval_dataset/          ncu_qa_testset.json（原版 10 题）/ _v2.json（分层 68 题）
+web/                       Vue3 前端（工具调用轨迹面板 + 流式打字机 + 出处卡片）
+```
+
+## 检索管线演进与实验复现
+
+| 版本 | 召回通道 | 融合 | 重排 | 一句话说明 |
+| :--- | :--- | :--- | :--- | :--- |
+| v1 | 字符TF-IDF"伪Dense" + 词频Sparse | alpha 加权 | 启发式关键词加权 | 毕设原版（词面匹配，"挂科"匹配不到"不及格"） |
+| v2 | bge-small-zh-v1.5 真语义 Dense + v1 Sparse | alpha 加权 | 启发式 | 真语义向量引入 |
+| v3 | **FAISS Dense + BM25(jieba)** | **RRF (k=60)** | **bge-reranker-base 交叉编码器** | 量纲无关融合 + 神经精排 |
+
+**从零复现全部实验**（语料变动后需要时再跑①②③；评测随跑随出）：
 
 ```bash
-# 结构化解析 12 份 Markdown 文档
-python code/scripts/structure_chunker.py
-
-# 构建 Dense + BM25 混合向量索引
-python code/scripts/vector_store_builder.py
+python scripts/structure_chunker.py        # ① 原始公文 → 切片（仓库已含产物）
+python scripts/vector_store_builder.py     # ② 构建 v1 向量库（pickle）
+python -m agent.build_vector_store_v2      # ③ 构建 v2 语义向量库（npz）
+python -m agent.eval_retrieval             # ④ 三臂评测（毕设原版 10 题口径）
+python -m agent.eval_retrieval --testset data/eval_dataset/ncu_qa_testset_v2.json   # 分层 45 题
+python -m agent.eval_refusal               # ⑤ 拒答评测（20 题，跑完整 agent）
 ```
 
-### 3. 启动 FastAPI 服务端 (Start Backend Server)
+**核心结果**（分层 45 题人工审核定稿集，同判据同管线，唯一变量为检索层）：
 
-启动 AI 问答 API 服务（默认运行于 `http://127.0.0.1:8000`）：
+| 管线 | Hit@1 | Hit@3 | Hit@5 | MRR@3 |
+| :--- | :--- | :--- | :--- | :--- |
+| v1 字符TF-IDF + 启发式重排 | 66.7% | 86.7% | 93.3% | 0.7593 |
+| v2 bge 语义 + 启发式重排 | 77.8% | 95.6% | 97.8% | 0.8667 |
+| **v3 FAISS+BM25 + RRF + 交叉精排** | **88.9%** | **100.0%** | **100.0%** | **0.9370** |
 
-```bash
-python code/server/app_rag_service.py
-```
+分层视角：区分度主要来自 direct/paraphrase 两层（Hit@3 均 81%→100%）；
+numeric/combo 层已饱和（v1 也 100%，属评测集已知局限）。
 
-### 4. 体验前端问答 (Access Web UI)
+## 防幻觉拒答评测（20 题 · 三层子类型）
 
-在浏览器中直接打开 `code/web/index.html` 即可体验实时打字流问答！
+| 子类型 | 题数 | 严格拒答正确率 | 行为 |
+| :--- | :--- | :--- | :--- |
+| 完全无关 | 8 | **100%** | 零工具调用直接拒答 |
+| 校园相关但库外 | 7 | **85.7%** | 检索 2~3 次确认无果后拒答 |
+| 语料内主题无答案 | 5 | 20%（严格口径） | 边界式回答（见归因） |
+| **总体** | 20 | **75.0%** | |
 
----
+失败样本人工归因：**0 例真幻觉**（无编造条文/数字）——1 例为 LLM 裁判误判，
+4 例为"给出库内确有信息 + 明确标注所问细节未规定"的边界式回答。评测采用
+规则 + 独立 LLM 裁判双判，判定不一致的样本单独标记，恰好圈出全部边界案例。
 
-## 📊 系统总体架构 (System Architecture)
+## Agent 行为（端到端验证过）
 
-```
-[ 用户交互层 ] ─── Vue3 前端 (昌大青蓝 VI) + Scope 过滤器 + SSE 流式推流
-       │
-[ 接口控制层 ] ─── FastAPI REST/SSE 接口 (Port 8000) + SQLite 历史/评分落盘
-       │
-[ RAG 算法层 ] ─── 意图路由 -> 指代消解 -> Query改写 -> 混合检索(BM25+Dense) -> Scope过滤 -> Cross-Reranker
-       │
-[ 模型推理层 ] ─── Prompt 结构化注入 + 智谱 AI GLM-4-Flash / OpenAI 兼容基类
-       │
-[ 数据存储层 ] ─── 12 大领域 Markdown 公文 + 98 结构化切片 + Pickle 向量库
-```
+- **规则+检索组合**："我绩点3.1有记过处分能转专业吗" → 并行调用 check_rule +
+  search_regulations，输出逐条对照表（GPA 3.1 vs 门槛 2.5）并给出处；
+- **自适应补检索**：检索结果不充分时自主换关键词重查（对比题场景追加过 2 次精确检索）；
+- **口语改写**：把"挂科太多会被开除吗"改写为规范检索词"不及格 退学 开除学籍"；
+- **零浪费拒答**：无关问题不调用任何工具直接拒答；
+- **多工具链式**：检索 → 主动读整条原文 → 追查关联条文 → 汇总结论。
 
----
+## 设计决策与已知简化（诚实声明）
 
-## 📝 毕业论文对应与参考 (Thesis References)
+- **FAISS 在 98 条切片下与暴力点积等价**（同为精确检索），采用它是为对齐工业栈、
+  语料上万后可平滑换 IVF/HNSW 而上层零改动；
+- **RRF 取代 alpha 加权**的原因：余弦与 TF-IDF 分数量纲不可比，alpha 是需扫描调优
+  的超参，RRF 只看排名、免调参；
+- 评测判据在毕设口径上修复了**多条文目标无法命中**的缺陷（"第五条、第六条"按、
+  拆分任一命中），并在报告中注明；
+- 多轮会话为简化实现：保存问答文本对，不回放中间工具消息（agent 每轮重新自主决策）；
+- LLM 调用层暂无重试/降级；`.env` 中的 API Key 严禁提交（历史泄露 key 已作废）。
 
-- 架构图说明：详见 [system_architecture.md](code/data/eval_dataset/system_architecture.md)
-- 对比实验数据：详见 [advanced_retrieval_comparison.md](code/data/eval_dataset/advanced_retrieval_comparison.md)
-- 毕业论文初稿：详见 [毕业论文初稿_基于RAG的高校制度文档智能问答系统.md](毕业论文初稿_基于RAG的高校制度文档智能问答系统.md)
+## 路线图
 
----
+- [ ] 对比题（3 道）的 agent 级评测：多跳召回 + 综合推理判定
+- [ ] LLM 调用容错（重试/降级）与检索置信度闸门（v3 精排分数阈值化）
+- [ ] Langfuse 自托管调用追踪
+- [ ] 评测集 numeric/combo 层补充"数字陷阱"题（当前已饱和）
 
-## 📄 开源协议 (License)
+## 致谢
 
-本项目基于 [MIT License](LICENSE) 协议开源。欢迎学术交流与二次开发！
+基于本人本科毕业设计《基于 RAG 的高校制度文档智能问答系统》重构演进；
+语料为南昌大学 12 份现行规章制度公文。

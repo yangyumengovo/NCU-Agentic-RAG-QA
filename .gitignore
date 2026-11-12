@@ -2,4 +2,6 @@
 __pycache__/
 *.pyc
 .env
-ncu_repo.zip
+data/ncu_rag_history.db
+data/eval_dataset/*_report.md
+*.log
