@@ -73,7 +73,7 @@ data/
 ├── raw_documents/         12 份校规公文（Markdown）
 ├── processed_chunks/      98 个结构化切片
 ├── vector_store/          v1 pickle + v2 npz 向量库
-└── eval_dataset/          ncu_qa_testset.json（原版 10 题）/ _v2.json（分层 68 题）
+└── eval_dataset/          ncu_qa_testset.json（分层 68 题：45 检索 + 20 拒答 + 3 对比）
 web/                       Vue3 前端（工具调用轨迹面板 + 流式打字机 + 出处卡片）
 ```
 
@@ -91,8 +91,7 @@ web/                       Vue3 前端（工具调用轨迹面板 + 流式打字
 python scripts/structure_chunker.py        # ① 原始公文 → 切片（仓库已含产物）
 python scripts/vector_store_builder.py     # ② 构建 v1 向量库（pickle）
 python -m agent.build_vector_store_v2      # ③ 构建 v2 语义向量库（npz）
-python -m agent.eval_retrieval             # ④ 三臂评测（毕设原版 10 题口径）
-python -m agent.eval_retrieval --testset data/eval_dataset/ncu_qa_testset_v2.json   # 分层 45 题
+python -m agent.eval_retrieval             # ④ 三臂评测（45 道检索题，题型分层报表）
 python -m agent.eval_refusal               # ⑤ 拒答评测（20 题，跑完整 agent）
 ```
 

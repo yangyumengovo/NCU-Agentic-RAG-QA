@@ -16,7 +16,7 @@ from datetime import date
 from agent.config import DATA_DIR, LLM_API_KEY, LLM_BASE_URL, LLM_MODEL
 from agent.graph import build_graph
 
-TESTSET_PATH = DATA_DIR / "eval_dataset" / "ncu_qa_testset_v2.json"
+TESTSET_PATH = DATA_DIR / "eval_dataset" / "ncu_qa_testset.json"
 REPORT_PATH = DATA_DIR / "eval_dataset" / "refusal_eval_report.md"
 
 # 规则判定的拒答话术标记（命中任一即判"拒答"）

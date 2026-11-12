@@ -1,4 +1,4 @@
-"""检索管线多臂评测：v1/v2/v3 同口径对比，支持分层评测集（v2 数据集按题型出分）。
+"""检索管线多臂评测：v1/v2/v3 同口径对比，内置分层评测集（按题型分层出分）。
 
 口径：
 - 命中判据：任一 (target_doc, target_article) 目标对命中即算；目标条号支持
@@ -7,8 +7,7 @@
 - 拒答/对比题无检索目标，跳过（属 agent 级评测，后续接入）。
 
 用法：
-    python -m agent.eval_retrieval                                        # 毕设原版 10 题
-    python -m agent.eval_retrieval --testset data/eval_dataset/ncu_qa_testset_v2.json  # 分层 45 题
+    python -m agent.eval_retrieval          # 内置分层评测集（45 道检索题，题型分层报表）
 """
 
 import argparse
@@ -94,7 +93,7 @@ def main() -> None:
     parser.add_argument(
         "--testset",
         default=str(TESTSET_PATH),
-        help="评测集路径；分层集用 data/eval_dataset/ncu_qa_testset_v2.json",
+        help="评测集路径（默认内置分层集，可换自定义集）",
     )
     args = parser.parse_args()
 
